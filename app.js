@@ -5,7 +5,7 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = "";
 let currentAvatar = "";
-let isDM = false;
+let isDM = localStorage.getItem("isDM") === "true";
 
 /* ---------------- LOGIN ---------------- */
 
@@ -14,6 +14,10 @@ function enterChat() {
     currentAvatar = document.getElementById("avatar").value;
 
     if (!currentUser) return;
+
+    if (!currentAvatar) {
+        currentAvatar = "assets/default-avatar.png";
+    }
 
     localStorage.setItem("username", currentUser);
     localStorage.setItem("avatar", currentAvatar);
@@ -28,7 +32,10 @@ function enterDMMode() {
 
     if (pass === "Critical20") {
         isDM = true;
+        localStorage.setItem("isDM", "true");
         alert("DM mode enabled");
+
+        loadMessages(); // 🔥 IMPORTANT: re-render old messages with delete buttons
     } else {
         alert("Incorrect password");
     }
@@ -52,11 +59,16 @@ async function sendMessage() {
 
     if (!text) return;
 
-    await client.from("messages").insert({
+    const { error } = await client.from("messages").insert({
         username: currentUser,
         avatar: currentAvatar,
         content: text
     });
+
+    if (error) {
+        console.error("Send error:", error);
+        return;
+    }
 
     input.value = "";
 }
@@ -66,10 +78,15 @@ async function sendMessage() {
 async function deleteMessage(id, element) {
     if (!isDM) return;
 
-    await client
+    const { error } = await client
         .from("messages")
         .delete()
         .eq("id", id);
+
+    if (error) {
+        console.error("Delete error:", error);
+        return;
+    }
 
     element.remove();
 }
@@ -77,6 +94,11 @@ async function deleteMessage(id, element) {
 /* ---------------- RENDER MESSAGE ---------------- */
 
 function addMessage(msg) {
+    const container = document.getElementById("messages");
+
+    // prevent duplicates (important for realtime)
+    if (document.querySelector(`.message[data-id="${msg.id}"]`)) return;
+
     const wrap = document.createElement("div");
     wrap.className = "message";
     wrap.dataset.id = msg.id;
@@ -92,7 +114,7 @@ function addMessage(msg) {
                 ${msg.username}
             </div>
 
-            <div>
+            <div class="text">
                 ${msg.content}
             </div>
 
@@ -105,26 +127,37 @@ function addMessage(msg) {
         </div>
     `;
 
-    if (isDM) {
-        wrap.querySelector(".dm-delete").onclick = () =>
-            deleteMessage(msg.id, wrap);
+    const btn = wrap.querySelector(".dm-delete");
+    if (btn) {
+        btn.onclick = () => deleteMessage(msg.id, wrap);
     }
 
-    document.getElementById("messages").appendChild(wrap);
+    container.appendChild(wrap);
 
-    document.getElementById("messages").scrollTop =
-        document.getElementById("messages").scrollHeight;
+    // auto-scroll (safe)
+    const nearBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+
+    if (nearBottom) {
+        container.scrollTop = container.scrollHeight;
+    }
 }
 
 /* ---------------- LOAD HISTORY ---------------- */
 
 async function loadMessages() {
-    const { data } = await client
+    const { data, error } = await client
         .from("messages")
         .select("*")
         .order("created_at", { ascending: true });
 
-    document.getElementById("messages").innerHTML = "";
+    if (error) {
+        console.error("Load error:", error);
+        return;
+    }
+
+    const container = document.getElementById("messages");
+    container.innerHTML = "";
 
     data.forEach(addMessage);
 }
@@ -171,3 +204,15 @@ window.onload = async () => {
 
     await loadMessages();
 };
+
+/* ---------------- ENTER KEY SUPPORT ---------------- */
+
+document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("messageInput");
+
+    if (input) {
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") sendMessage();
+        });
+    }
+});
