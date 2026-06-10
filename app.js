@@ -31,11 +31,38 @@ const SKILLS = [
     "animal_ken","empathy","expression","intimidation","persuasion","socialize","streetwise","subterfuge"
 ];
 
+/* ---------------- SAFE DOM HELPERS ---------------- */
+
+function el(id) {
+    return document.getElementById(id);
+}
+
+/* ---------------- DM PANEL (FIXED - NEVER BREAKS) ---------------- */
+
+function updateDMPanel() {
+    let panel = el("dmPanel");
+
+    if (!panel) {
+        panel = document.createElement("div");
+        panel.id = "dmPanel";
+        document.body.appendChild(panel);
+    }
+
+    panel.innerHTML = `
+        <div class="dm-title">DM PANEL</div>
+        <button onclick="toggleHauntAngr()">Haunt-ANGR</button>
+        <button onclick="saveCharacterSheet()">Save Sheet</button>
+        <button onclick="toggleDMMode()">Exit DM</button>
+    `;
+
+    panel.style.display = isDM ? "flex" : "none";
+}
+
 /* ---------------- LOGIN ---------------- */
 
 function enterChat() {
-    currentUser = document.getElementById("username").value;
-    currentAvatar = document.getElementById("avatar").value;
+    currentUser = el("username")?.value || "";
+    currentAvatar = el("avatar")?.value || "";
 
     if (!currentUser) return;
 
@@ -46,7 +73,8 @@ function enterChat() {
     localStorage.setItem("username", currentUser);
     localStorage.setItem("avatar", currentAvatar);
 
-    document.getElementById("overlay").style.display = "none";
+    const overlay = el("overlay");
+    if (overlay) overlay.style.display = "none";
 
     openCharacterCreator();
 }
@@ -62,8 +90,8 @@ function enterDMMode() {
 
         alert("DM mode enabled");
 
-        loadMessages();
         updateDMPanel();
+        loadMessages();
     } else {
         alert("Incorrect password");
     }
@@ -75,10 +103,10 @@ function toggleDMMode() {
 
     hauntAngr = false;
 
-    alert("DM mode disabled");
-
-    loadMessages();
     updateDMPanel();
+    loadMessages();
+
+    alert("DM mode disabled");
 }
 
 /* ---------------- HAUNT ---------------- */
@@ -90,19 +118,24 @@ function toggleHauntAngr() {
     alert("Haunt-ANGR: " + (hauntAngr ? "ON" : "OFF"));
 }
 
-/* ---------------- CHARACTER CREATOR UI ---------------- */
+/* ---------------- CHARACTER CREATOR ---------------- */
 
 function openCharacterCreator() {
-    document.getElementById("charCreator").style.display = "block";
+    const panel = el("charCreator");
+    if (!panel) return; // 🔥 prevents crash
+
+    panel.style.display = "block";
 
     buildStats("attributes", ATTRIBUTES, "attributes");
     buildStats("skills", SKILLS, "skills");
 }
 
-/* ---------------- BUILD STAT UI ---------------- */
+/* ---------------- BUILD STATS ---------------- */
 
 function buildStats(containerId, list, type) {
-    const container = document.getElementById(containerId);
+    const container = el(containerId);
+    if (!container) return;
+
     container.innerHTML = "";
 
     list.forEach(name => {
@@ -135,8 +168,8 @@ function changeStat(type, name, delta) {
         characterSheet[type][name] = 0;
     }
 
-    document.getElementById(`${type}-${name}`).innerText =
-        characterSheet[type][name];
+    const cell = el(`${type}-${name}`);
+    if (cell) cell.innerText = characterSheet[type][name];
 }
 
 /* ---------------- SAVE SHEET ---------------- */
@@ -158,29 +191,30 @@ async function saveCharacterSheet() {
 
     alert("Character saved!");
 
-    document.getElementById("charCreator").style.display = "none";
+    const panel = el("charCreator");
+    if (panel) panel.style.display = "none";
 }
 
 /* ---------------- LOAD SHEET ---------------- */
 
 async function loadCharacterSheet() {
-    const { data, error } = await client
+    const { data } = await client
         .from("character_sheets")
         .select("*")
         .eq("username", currentUser)
         .single();
 
-    if (error || !data) return;
+    if (!data) return;
 
     characterSheet.attributes = data.attributes || {};
     characterSheet.skills = data.skills || {};
 }
 
-/* ---------------- SEND MESSAGE ---------------- */
+/* ---------------- CHAT ---------------- */
 
 async function sendMessage() {
-    const input = document.getElementById("messageInput");
-    const text = input.value.trim();
+    const input = el("messageInput");
+    const text = input?.value.trim();
 
     if (!text) return;
 
@@ -194,15 +228,12 @@ async function sendMessage() {
     input.value = "";
 }
 
-/* ---------------- DELETE MESSAGE ---------------- */
+/* ---------------- DELETE ---------------- */
 
 async function deleteMessage(id, element) {
     if (!isDM) return;
 
-    await client
-        .from("messages")
-        .delete()
-        .eq("id", id);
+    await client.from("messages").delete().eq("id", id);
 
     element.remove();
 }
@@ -215,14 +246,19 @@ async function loadMessages() {
         .select("*")
         .order("created_at", { ascending: true });
 
-    document.getElementById("messages").innerHTML = "";
+    const container = el("messages");
+    if (!container) return;
 
-    data.forEach(addMessage);
+    container.innerHTML = "";
+    data?.forEach(addMessage);
 }
 
-/* ---------------- RENDER MESSAGE ---------------- */
+/* ---------------- RENDER ---------------- */
 
 function addMessage(msg) {
+    const container = el("messages");
+    if (!container) return;
+
     const wrap = document.createElement("div");
     wrap.className = "message";
     wrap.dataset.id = msg.id;
@@ -231,7 +267,6 @@ function addMessage(msg) {
         <img class="avatar" src="${msg.avatar || 'assets/default-avatar.png'}">
 
         <div class="content">
-
             <div class="username">${msg.username}</div>
 
             <div class="text ${msg.haunt ? 'haunt-angr' : ''}">
@@ -243,7 +278,6 @@ function addMessage(msg) {
             </div>
 
             ${isDM ? `<button class="dm-delete">Delete</button>` : ""}
-
         </div>
     `;
 
@@ -252,7 +286,7 @@ function addMessage(msg) {
         btn.onclick = () => deleteMessage(msg.id, wrap);
     }
 
-    document.getElementById("messages").appendChild(wrap);
+    container.appendChild(wrap);
 }
 
 /* ---------------- REALTIME ---------------- */
@@ -263,9 +297,7 @@ client
         event: "INSERT",
         schema: "public",
         table: "messages"
-    }, payload => {
-        addMessage(payload.new);
-    })
+    }, payload => addMessage(payload.new))
     .on("postgres_changes", {
         event: "DELETE",
         schema: "public",
@@ -276,26 +308,29 @@ client
     })
     .subscribe();
 
-/* ---------------- STARTUP ---------------- */
+/* ---------------- STARTUP (FIXED ORDER) ---------------- */
 
 window.onload = async () => {
     currentUser = localStorage.getItem("username") || "";
     currentAvatar = localStorage.getItem("avatar") || "";
 
+    const overlay = el("overlay");
+    if (currentUser && overlay) overlay.style.display = "none";
+
+    updateDMPanel(); // 🔥 ALWAYS FIRST
+
     if (currentUser) {
-        document.getElementById("overlay").style.display = "none";
         openCharacterCreator();
     }
 
     await loadCharacterSheet();
     await loadMessages();
-    updateDMPanel();
 };
 
 /* ---------------- ENTER KEY ---------------- */
 
 document.addEventListener("DOMContentLoaded", () => {
-    const input = document.getElementById("messageInput");
+    const input = el("messageInput");
 
     if (input) {
         input.addEventListener("keydown", e => {
