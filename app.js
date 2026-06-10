@@ -234,24 +234,41 @@ async function loadCharacterSheet() {
 async function loadCharacterList() {
     if (!isDM) return;
 
-    const { data } = await client
+    const list = el("characterList");
+    if (!list) return;
+
+    list.innerHTML = "Loading...";
+
+    const { data, error } = await client
         .from("character_sheets")
         .select("username");
 
-    const list = el("characterList");
-    if (!list) return;
+    console.log("CHARACTER LIST DATA:", data);
+    console.log("CHARACTER LIST ERROR:", error);
+
+    if (error) {
+        list.innerHTML = "Error loading characters";
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        list.innerHTML = "No characters found";
+        return;
+    }
 
     list.innerHTML = "";
 
     data.forEach(c => {
+        if (!c?.username) return;
+
         const btn = document.createElement("button");
         btn.innerText = c.username;
+
         btn.onclick = () => inspectCharacter(c.username);
 
         list.appendChild(btn);
     });
 }
-
 /* ---------------- INSPECT CHARACTER ---------------- */
 
 async function inspectCharacter(username) {
