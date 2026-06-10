@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=UnifrakturCook:wght@700&family=Special+Elite&display=swap');
+
 html, body {
     margin: 0;
     padding: 0;
@@ -8,14 +10,35 @@ html, body {
     color: #ddd;
     font-family: Verdana, sans-serif;
 }
-@import url('https://fonts.googleapis.com/css2?family=Creepster&display=swap');
+
+/* ---------------- HAUNT-ANGR ---------------- */
 
 .haunt-angr {
-    font-family: 'Creepster', cursive;
-    color: #ff3b3b;
+    font-family: 'UnifrakturCook', cursive;
+    color: #ff2a2a;
+
     letter-spacing: 1px;
-    text-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
+
+    text-shadow:
+        0 0 2px #ff0000,
+        0 0 10px rgba(255, 0, 0, 0.5),
+        0 0 18px rgba(0, 0, 0, 0.8);
+
+    display: inline-block;
+
+    animation: hauntJitter 0.08s infinite;
 }
+
+@keyframes hauntJitter {
+    0%   { transform: translate(0px, 0px) skewX(-6deg); opacity: 1; }
+    25%  { transform: translate(1px, -1px) skewX(-8deg); opacity: 0.85; }
+    50%  { transform: translate(-1px, 1px) skewX(-5deg); opacity: 1; }
+    75%  { transform: translate(1px, 1px) skewX(-9deg); opacity: 0.9; }
+    100% { transform: translate(0px, 0px) skewX(-6deg); opacity: 1; }
+}
+
+/* ---------------- CHAT LAYOUT ---------------- */
+
 #chatContainer {
     display: flex;
     flex-direction: column;
@@ -33,7 +56,7 @@ html, body {
     flex: 1;
     overflow-y: auto;
     padding: 10px;
-    min-height: 0; /* important */
+    min-height: 0;
 }
 
 #inputArea {
@@ -47,6 +70,8 @@ html, body {
 #messageInput {
     flex: 1;
 }
+
+/* ---------------- DM PANEL ---------------- */
 
 #dmPanel {
     position: fixed;
