@@ -6,7 +6,7 @@ let currentUser = "";
 let currentAvatar = "";
 let isDM = localStorage.getItem("isDM") === "true";
 
-/* ---------------- HAUNT STATE ---------------- */
+/* ---------------- HAUNT STATE (LOCAL ONLY) ---------------- */
 
 let hauntAngr = false;
 
@@ -59,6 +59,8 @@ function toggleDMMode() {
     isDM = false;
     localStorage.setItem("isDM", "false");
 
+    hauntAngr = false; // safety reset
+
     alert("DM mode disabled");
 
     loadMessages();
@@ -95,9 +97,8 @@ async function sendMessage() {
     const { error } = await client.from("messages").insert({
         username: currentUser,
         avatar: currentAvatar,
-        content: hauntAngr && isDM
-            ? `[HAUNT-ANGR] ${text}`
-            : text
+        content: text,
+        haunt: isDM && hauntAngr // ✅ FIX: stored per message
     });
 
     if (error) {
@@ -169,7 +170,7 @@ function addMessage(msg) {
                 ${msg.username}
             </div>
 
-            <div class="text ${isDM && hauntAngr ? 'haunt-angr' : ''}">
+            <div class="text ${msg.haunt ? 'haunt-angr' : ''}">
                 ${msg.content}
             </div>
 
