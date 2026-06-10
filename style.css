@@ -8,7 +8,14 @@ html, body {
     color: #ddd;
     font-family: Verdana, sans-serif;
 }
+@import url('https://fonts.googleapis.com/css2?family=Creepster&display=swap');
 
+.haunt-angr {
+    font-family: 'Creepster', cursive;
+    color: #ff3b3b;
+    letter-spacing: 1px;
+    text-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
+}
 #chatContainer {
     display: flex;
     flex-direction: column;
