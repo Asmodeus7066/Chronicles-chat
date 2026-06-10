@@ -2,13 +2,34 @@ const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+/* ---------------- USER STATE ---------------- */
+
 let currentUser = "";
 let currentAvatar = "";
 let isDM = localStorage.getItem("isDM") === "true";
 
-/* ---------------- HAUNT STATE (LOCAL ONLY) ---------------- */
-
 let hauntAngr = false;
+
+/* ---------------- CHARACTER SHEET ---------------- */
+
+let characterSheet = {
+    attributes: {},
+    skills: {}
+};
+
+/* ---------------- CHRONICLES DATA ---------------- */
+
+const ATTRIBUTES = [
+    "strength","dexterity","stamina",
+    "intelligence","wits","resolve",
+    "presence","manipulation","composure"
+];
+
+const SKILLS = [
+    "academics","computer","crafts","investigation","medicine","occult","politics","science",
+    "athletics","brawl","drive","firearms","larceny","stealth","survival","weaponry",
+    "animal_ken","empathy","expression","intimidation","persuasion","socialize","streetwise","subterfuge"
+];
 
 /* ---------------- LOGIN ---------------- */
 
@@ -26,15 +47,8 @@ function enterChat() {
     localStorage.setItem("avatar", currentAvatar);
 
     document.getElementById("overlay").style.display = "none";
-}
 
-/* ---------------- DM PANEL ---------------- */
-
-function updateDMPanel() {
-    const panel = document.getElementById("dmPanel");
-    if (!panel) return;
-
-    panel.style.display = isDM ? "flex" : "none";
+    openCharacterCreator();
 }
 
 /* ---------------- DM MODE ---------------- */
@@ -59,7 +73,7 @@ function toggleDMMode() {
     isDM = false;
     localStorage.setItem("isDM", "false");
 
-    hauntAngr = false; // safety reset
+    hauntAngr = false;
 
     alert("DM mode disabled");
 
@@ -67,23 +81,99 @@ function toggleDMMode() {
     updateDMPanel();
 }
 
-function setUsernameForMessage() {
-    if (!isDM) return;
-
-    const newName = prompt("Set username (DM only):");
-    if (newName) {
-        currentUser = newName;
-        alert("Username set to: " + newName);
-    }
-}
-
-/* ---------------- HAUNT-ANGR TOGGLE ---------------- */
+/* ---------------- HAUNT ---------------- */
 
 function toggleHauntAngr() {
     if (!isDM) return;
 
     hauntAngr = !hauntAngr;
     alert("Haunt-ANGR: " + (hauntAngr ? "ON" : "OFF"));
+}
+
+/* ---------------- CHARACTER CREATOR UI ---------------- */
+
+function openCharacterCreator() {
+    document.getElementById("charCreator").style.display = "block";
+
+    buildStats("attributes", ATTRIBUTES, "attributes");
+    buildStats("skills", SKILLS, "skills");
+}
+
+/* ---------------- BUILD STAT UI ---------------- */
+
+function buildStats(containerId, list, type) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = "";
+
+    list.forEach(name => {
+        if (characterSheet[type][name] === undefined) {
+            characterSheet[type][name] = 0;
+        }
+
+        const row = document.createElement("div");
+        row.className = "stat-row";
+
+        row.innerHTML = `
+            <span>${name}</span>
+            <div>
+                <button onclick="changeStat('${type}','${name}',-1)">-</button>
+                <span id="${type}-${name}">${characterSheet[type][name]}</span>
+                <button onclick="changeStat('${type}','${name}',1)">+</button>
+            </div>
+        `;
+
+        container.appendChild(row);
+    });
+}
+
+/* ---------------- CHANGE STAT ---------------- */
+
+function changeStat(type, name, delta) {
+    characterSheet[type][name] += delta;
+
+    if (characterSheet[type][name] < 0) {
+        characterSheet[type][name] = 0;
+    }
+
+    document.getElementById(`${type}-${name}`).innerText =
+        characterSheet[type][name];
+}
+
+/* ---------------- SAVE SHEET ---------------- */
+
+async function saveCharacterSheet() {
+    const { error } = await client
+        .from("character_sheets")
+        .upsert({
+            username: currentUser,
+            attributes: characterSheet.attributes,
+            skills: characterSheet.skills
+        }, { onConflict: "username" });
+
+    if (error) {
+        console.error(error);
+        alert("Failed to save character");
+        return;
+    }
+
+    alert("Character saved!");
+
+    document.getElementById("charCreator").style.display = "none";
+}
+
+/* ---------------- LOAD SHEET ---------------- */
+
+async function loadCharacterSheet() {
+    const { data, error } = await client
+        .from("character_sheets")
+        .select("*")
+        .eq("username", currentUser)
+        .single();
+
+    if (error || !data) return;
+
+    characterSheet.attributes = data.attributes || {};
+    characterSheet.skills = data.skills || {};
 }
 
 /* ---------------- SEND MESSAGE ---------------- */
@@ -94,17 +184,12 @@ async function sendMessage() {
 
     if (!text) return;
 
-    const { error } = await client.from("messages").insert({
+    await client.from("messages").insert({
         username: currentUser,
         avatar: currentAvatar,
         content: text,
-        haunt: isDM && hauntAngr // ✅ FIX: stored per message
+        haunt: isDM && hauntAngr
     });
-
-    if (error) {
-        console.error("Send error:", error);
-        return;
-    }
 
     input.value = "";
 }
@@ -114,61 +199,40 @@ async function sendMessage() {
 async function deleteMessage(id, element) {
     if (!isDM) return;
 
-    const { error } = await client
+    await client
         .from("messages")
         .delete()
         .eq("id", id);
 
-    if (error) {
-        console.error("Delete error:", error);
-        return;
-    }
-
     element.remove();
 }
 
-/* ---------------- WIPE CHAT ---------------- */
+/* ---------------- LOAD MESSAGES ---------------- */
 
-async function wipeAllMessages() {
-    if (!isDM) return;
-
-    const confirmWipe = confirm("Delete ALL messages?");
-    if (!confirmWipe) return;
-
-    const { error } = await client
+async function loadMessages() {
+    const { data } = await client
         .from("messages")
-        .delete()
-        .neq("id", 0);
-
-    if (error) {
-        console.error("Wipe error:", error);
-        return;
-    }
+        .select("*")
+        .order("created_at", { ascending: true });
 
     document.getElementById("messages").innerHTML = "";
+
+    data.forEach(addMessage);
 }
 
 /* ---------------- RENDER MESSAGE ---------------- */
 
 function addMessage(msg) {
-    const container = document.getElementById("messages");
-
-    if (document.querySelector(`.message[data-id="${msg.id}"]`)) return;
-
     const wrap = document.createElement("div");
     wrap.className = "message";
     wrap.dataset.id = msg.id;
 
     wrap.innerHTML = `
-        <img class="avatar"
-            src="${msg.avatar || 'assets/default-avatar.png'}"
-        >
+        <img class="avatar" src="${msg.avatar || 'assets/default-avatar.png'}">
 
         <div class="content">
 
-            <div class="username">
-                ${msg.username}
-            </div>
+            <div class="username">${msg.username}</div>
 
             <div class="text ${msg.haunt ? 'haunt-angr' : ''}">
                 ${msg.content}
@@ -188,63 +252,28 @@ function addMessage(msg) {
         btn.onclick = () => deleteMessage(msg.id, wrap);
     }
 
-    container.appendChild(wrap);
-
-    const nearBottom =
-        container.scrollHeight - container.scrollTop - container.clientHeight < 120;
-
-    if (nearBottom) {
-        container.scrollTop = container.scrollHeight;
-    }
-}
-
-/* ---------------- LOAD HISTORY ---------------- */
-
-async function loadMessages() {
-    const { data, error } = await client
-        .from("messages")
-        .select("*")
-        .order("created_at", { ascending: true });
-
-    if (error) {
-        console.error("Load error:", error);
-        return;
-    }
-
-    const container = document.getElementById("messages");
-    container.innerHTML = "";
-
-    data.forEach(addMessage);
+    document.getElementById("messages").appendChild(wrap);
 }
 
 /* ---------------- REALTIME ---------------- */
 
 client
     .channel("chat")
-    .on(
-        "postgres_changes",
-        {
-            event: "INSERT",
-            schema: "public",
-            table: "messages"
-        },
-        (payload) => {
-            addMessage(payload.new);
-        }
-    )
-    .on(
-        "postgres_changes",
-        {
-            event: "DELETE",
-            schema: "public",
-            table: "messages"
-        },
-        (payload) => {
-            const id = payload.old.id;
-            const el = document.querySelector(`.message[data-id="${id}"]`);
-            if (el) el.remove();
-        }
-    )
+    .on("postgres_changes", {
+        event: "INSERT",
+        schema: "public",
+        table: "messages"
+    }, payload => {
+        addMessage(payload.new);
+    })
+    .on("postgres_changes", {
+        event: "DELETE",
+        schema: "public",
+        table: "messages"
+    }, payload => {
+        const el = document.querySelector(`.message[data-id="${payload.old.id}"]`);
+        if (el) el.remove();
+    })
     .subscribe();
 
 /* ---------------- STARTUP ---------------- */
@@ -255,8 +284,10 @@ window.onload = async () => {
 
     if (currentUser) {
         document.getElementById("overlay").style.display = "none";
+        openCharacterCreator();
     }
 
+    await loadCharacterSheet();
     await loadMessages();
     updateDMPanel();
 };
@@ -267,7 +298,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const input = document.getElementById("messageInput");
 
     if (input) {
-        input.addEventListener("keydown", (e) => {
+        input.addEventListener("keydown", e => {
             if (e.key === "Enter") sendMessage();
         });
     }
