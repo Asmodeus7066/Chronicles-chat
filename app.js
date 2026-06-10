@@ -2,7 +2,7 @@ const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* ---------------- USER STATE ---------------- */
+/* ---------------- STATE ---------------- */
 
 let currentUser = "";
 let currentAvatar = "";
@@ -31,19 +31,23 @@ const SKILLS = [
     "animal_ken","empathy","expression","intimidation","persuasion","socialize","streetwise","subterfuge"
 ];
 
-/* ---------------- SAFE HELPERS ---------------- */
+/* ---------------- HELPERS ---------------- */
 
 function el(id) {
     return document.getElementById(id);
 }
 
-/* ---------------- DM PANEL (100% SAFE) ---------------- */
+/* ---------------- DM PANEL ---------------- */
 
 function updateDMPanel() {
     const panel = el("dmPanel");
     if (!panel) return;
 
     panel.style.display = isDM ? "flex" : "none";
+
+    if (isDM) {
+        loadCharacterList();
+    }
 }
 
 /* ---------------- LOGIN ---------------- */
@@ -97,6 +101,19 @@ function toggleDMMode() {
     alert("DM mode disabled");
 }
 
+/* ---------------- DM USERNAME OVERRIDE ---------------- */
+
+function setUsernameForMessage() {
+    if (!isDM) return;
+
+    const newName = prompt("Set username (DM only):");
+
+    if (newName && newName.trim()) {
+        currentUser = newName.trim();
+        alert("Username set to: " + currentUser);
+    }
+}
+
 /* ---------------- HAUNT ---------------- */
 
 function toggleHauntAngr() {
@@ -106,7 +123,7 @@ function toggleHauntAngr() {
     alert("Haunt-ANGR: " + (hauntAngr ? "ON" : "OFF"));
 }
 
-/* ---------------- WIPE CHAT (FIXED MISSING FUNCTION) ---------------- */
+/* ---------------- WIPE CHAT ---------------- */
 
 async function wipeAllMessages() {
     if (!isDM) return;
@@ -212,7 +229,59 @@ async function loadCharacterSheet() {
     characterSheet.skills = data.skills || {};
 }
 
-/* ---------------- SEND MESSAGE ---------------- */
+/* ---------------- CHARACTER LIST (DM) ---------------- */
+
+async function loadCharacterList() {
+    if (!isDM) return;
+
+    const { data } = await client
+        .from("character_sheets")
+        .select("username");
+
+    const list = el("characterList");
+    if (!list) return;
+
+    list.innerHTML = "";
+
+    data.forEach(c => {
+        const btn = document.createElement("button");
+        btn.innerText = c.username;
+        btn.onclick = () => inspectCharacter(c.username);
+
+        list.appendChild(btn);
+    });
+}
+
+/* ---------------- INSPECT CHARACTER ---------------- */
+
+async function inspectCharacter(username) {
+    const { data } = await client
+        .from("character_sheets")
+        .select("*")
+        .eq("username", username)
+        .single();
+
+    if (!data) return;
+
+    const box = el("characterInspect");
+    if (!box) return;
+
+    let html = `<strong>${username}</strong><br><br>`;
+
+    html += `<u>Attributes</u><br>`;
+    for (const [k, v] of Object.entries(data.attributes || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    html += `<br><u>Skills</u><br>`;
+    for (const [k, v] of Object.entries(data.skills || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    box.innerHTML = html;
+}
+
+/* ---------------- CHAT ---------------- */
 
 async function sendMessage() {
     const input = el("messageInput");
@@ -311,7 +380,7 @@ client
     })
     .subscribe();
 
-/* ---------------- STARTUP (SAFE ORDER) ---------------- */
+/* ---------------- STARTUP ---------------- */
 
 window.onload = async () => {
     currentUser = localStorage.getItem("username") || "";
@@ -320,7 +389,7 @@ window.onload = async () => {
     const overlay = el("overlay");
     if (currentUser && overlay) overlay.style.display = "none";
 
-    updateDMPanel(); // MUST RUN FIRST
+    updateDMPanel();
 
     if (currentUser) {
         openCharacterCreator();
@@ -328,6 +397,7 @@ window.onload = async () => {
 
     await loadCharacterSheet();
     await loadMessages();
+
     updateDMPanel();
 };
 
