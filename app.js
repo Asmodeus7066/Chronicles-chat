@@ -1,156 +1,158 @@
 const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
 
-const client =
-supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = "";
 let currentAvatar = "";
+let isDM = false;
 
-function enterChat(){
+/* ---------------- LOGIN ---------------- */
 
-    currentUser =
-    document.getElementById("username").value;
+function enterChat() {
+    currentUser = document.getElementById("username").value;
+    currentAvatar = document.getElementById("avatar").value;
 
-    currentAvatar =
-    document.getElementById("avatar").value;
+    if (!currentUser) return;
 
-    if(!currentUser) return;
+    localStorage.setItem("username", currentUser);
+    localStorage.setItem("avatar", currentAvatar);
 
-    localStorage.setItem(
-        "username",
-        currentUser
-    );
-
-    localStorage.setItem(
-        "avatar",
-        currentAvatar
-    );
-
-    document.getElementById(
-        "overlay"
-    ).style.display="none";
+    document.getElementById("overlay").style.display = "none";
 }
 
-async function sendMessage(){
+/* ---------------- DM MODE ---------------- */
 
-    const input =
-    document.getElementById(
-        "messageInput"
-    );
+function enterDMMode() {
+    const pass = prompt("Enter DM password:");
 
+    if (pass === "Critical20") {
+        isDM = true;
+        alert("DM mode enabled");
+    } else {
+        alert("Incorrect password");
+    }
+}
+
+function setUsernameForMessage() {
+    if (!isDM) return;
+
+    const newName = prompt("Set username (DM only):");
+    if (newName) {
+        currentUser = newName;
+        alert("Username set to: " + newName);
+    }
+}
+
+/* ---------------- SEND MESSAGE ---------------- */
+
+async function sendMessage() {
+    const input = document.getElementById("messageInput");
     const text = input.value.trim();
 
-    if(!text) return;
+    if (!text) return;
 
-    await client
-    .from("messages")
-    .insert({
+    await client.from("messages").insert({
         username: currentUser,
         avatar: currentAvatar,
         content: text
     });
 
-    input.value="";
+    input.value = "";
 }
 
-function addMessage(msg){
+/* ---------------- DELETE MESSAGE ---------------- */
 
-    const wrap =
-    document.createElement("div");
+async function deleteMessage(id, element) {
+    if (!isDM) return;
 
-    wrap.className="message";
+    await client
+        .from("messages")
+        .delete()
+        .eq("id", id);
 
-    wrap.innerHTML=`
+    element.remove();
+}
 
-    <img
-      class="avatar"
-      src="${
-        msg.avatar ||
-        'assets/default-avatar.png'
-      }"
-    >
+/* ---------------- RENDER MESSAGE ---------------- */
 
-    <div class="content">
+function addMessage(msg) {
+    const wrap = document.createElement("div");
+    wrap.className = "message";
 
-      <div class="username">
-        ${msg.username}
-      </div>
+    wrap.innerHTML = `
+        <img class="avatar"
+            src="${msg.avatar || 'assets/default-avatar.png'}"
+        >
 
-      <div>
-        ${msg.content}
-      </div>
+        <div class="content">
 
-      <div class="time">
-        ${
-          new Date(
-            msg.created_at
-          ).toLocaleString()
-        }
-      </div>
+            <div class="username">
+                ${msg.username}
+            </div>
 
-    </div>
+            <div>
+                ${msg.content}
+            </div>
+
+            <div class="time">
+                ${new Date(msg.created_at).toLocaleString()}
+            </div>
+
+            ${isDM ? `<button class="dm-delete">Delete</button>` : ""}
+
+        </div>
     `;
 
-    document
-    .getElementById("messages")
-    .appendChild(wrap);
+    if (isDM) {
+        wrap.querySelector(".dm-delete").onclick = () =>
+            deleteMessage(msg.id, wrap);
+    }
+
+    document.getElementById("messages").appendChild(wrap);
+
+    document.getElementById("messages").scrollTop =
+        document.getElementById("messages").scrollHeight;
 }
 
-async function loadMessages(){
+/* ---------------- LOAD MESSAGES ---------------- */
 
-    const { data } =
-    await client
-    .from("messages")
-    .select("*")
-    .order(
-      "created_at",
-      { ascending:true }
-    );
+async function loadMessages() {
+    const { data } = await client
+        .from("messages")
+        .select("*")
+        .order("created_at", { ascending: true });
 
-    document
-    .getElementById(
-      "messages"
-    ).innerHTML="";
+    document.getElementById("messages").innerHTML = "";
 
     data.forEach(addMessage);
 }
 
+/* ---------------- REALTIME ---------------- */
+
 client
-.channel("chat")
-.on(
-    "postgres_changes",
-    {
-        event:"INSERT",
-        schema:"public",
-        table:"messages"
-    },
-    payload => {
-        addMessage(payload.new);
-    }
-)
-.subscribe();
+    .channel("chat")
+    .on(
+        "postgres_changes",
+        {
+            event: "INSERT",
+            schema: "public",
+            table: "messages"
+        },
+        (payload) => {
+            addMessage(payload.new);
+        }
+    )
+    .subscribe();
+
+/* ---------------- STARTUP ---------------- */
 
 window.onload = async () => {
+    currentUser = localStorage.getItem("username") || "";
+    currentAvatar = localStorage.getItem("avatar") || "";
 
-    currentUser =
-    localStorage.getItem(
-      "username"
-    ) || "";
-
-    currentAvatar =
-    localStorage.getItem(
-      "avatar"
-    ) || "";
-
-    if(currentUser){
-        document
-        .getElementById(
-          "overlay"
-        ).style.display="none";
+    if (currentUser) {
+        document.getElementById("overlay").style.display = "none";
     }
 
     await loadMessages();
