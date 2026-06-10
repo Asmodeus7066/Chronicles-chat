@@ -31,7 +31,6 @@
   <div id="header">
     CHRONICLE ARCHIVE
     <button onclick="enterDMMode()">DM Login</button>
-    <button onclick="setUsernameForMessage()">Change Username</button>
   </div>
 
   <div id="messages"></div>
@@ -44,6 +43,23 @@
     </button>
   </div>
 
+</div>
+
+<!-- 🔥 DM CONTROL PANEL (only visible in DM mode) -->
+<div id="dmPanel">
+    <div class="dm-title">DM PANEL</div>
+
+    <button onclick="setUsernameForMessage()">
+        Change Username
+    </button>
+
+    <button onclick="wipeAllMessages()">
+        Wipe All Messages
+    </button>
+
+    <button onclick="toggleDMMode()">
+        Exit DM Mode
+    </button>
 </div>
 
 <script src="app.js"></script>
