@@ -59,20 +59,16 @@
 <div id="dmPanel">
     <div class="dm-title">DM PANEL</div>
 
-    <button onclick="setUsernameForMessage()">
-        Change Username
-    </button>
+    <button onclick="toggleHauntAngr()">Haunt-ANGR</button>
+    <button onclick="wipeAllMessages()">Wipe All Messages</button>
+    <button onclick="toggleDMMode()">Exit DM Mode</button>
 
-    <button onclick="wipeAllMessages()">
-        Wipe All Messages
-    </button>
+    <hr>
 
-    <button onclick="toggleDMMode()">
-        Exit DM Mode
-    </button>
-    <button onclick="toggleHauntAngr()">
-        Haunt-ANGR
-    </button>
+    <div class="dm-title">Characters</div>
+    <div id="characterList"></div>
+
+    <div id="characterInspect"></div>
 </div>
 
 <script src="app.js"></script>
