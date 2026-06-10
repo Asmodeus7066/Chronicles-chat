@@ -1,11 +1,14 @@
 const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
-
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = "";
 let currentAvatar = "";
 let isDM = localStorage.getItem("isDM") === "true";
+
+/* ---------------- HAUNT STATE ---------------- */
+
+let hauntAngr = false;
 
 /* ---------------- LOGIN ---------------- */
 
@@ -46,7 +49,7 @@ function enterDMMode() {
         alert("DM mode enabled");
 
         loadMessages();
-        updateDMPanel(); // show DM panel
+        updateDMPanel();
     } else {
         alert("Incorrect password");
     }
@@ -59,7 +62,7 @@ function toggleDMMode() {
     alert("DM mode disabled");
 
     loadMessages();
-    updateDMPanel(); // hide DM panel
+    updateDMPanel();
 }
 
 function setUsernameForMessage() {
@@ -70,6 +73,15 @@ function setUsernameForMessage() {
         currentUser = newName;
         alert("Username set to: " + newName);
     }
+}
+
+/* ---------------- HAUNT-ANGR TOGGLE ---------------- */
+
+function toggleHauntAngr() {
+    if (!isDM) return;
+
+    hauntAngr = !hauntAngr;
+    alert("Haunt-ANGR: " + (hauntAngr ? "ON" : "OFF"));
 }
 
 /* ---------------- SEND MESSAGE ---------------- */
@@ -83,7 +95,9 @@ async function sendMessage() {
     const { error } = await client.from("messages").insert({
         username: currentUser,
         avatar: currentAvatar,
-        content: text
+        content: hauntAngr && isDM
+            ? `[HAUNT-ANGR] ${text}`
+            : text
     });
 
     if (error) {
@@ -112,7 +126,7 @@ async function deleteMessage(id, element) {
     element.remove();
 }
 
-/* ---------------- DM TOOL: WIPE CHAT ---------------- */
+/* ---------------- WIPE CHAT ---------------- */
 
 async function wipeAllMessages() {
     if (!isDM) return;
@@ -123,7 +137,7 @@ async function wipeAllMessages() {
     const { error } = await client
         .from("messages")
         .delete()
-        .neq("id", 0); // deletes everything
+        .neq("id", 0);
 
     if (error) {
         console.error("Wipe error:", error);
@@ -138,7 +152,6 @@ async function wipeAllMessages() {
 function addMessage(msg) {
     const container = document.getElementById("messages");
 
-    // prevent duplicates (important for realtime)
     if (document.querySelector(`.message[data-id="${msg.id}"]`)) return;
 
     const wrap = document.createElement("div");
@@ -156,7 +169,7 @@ function addMessage(msg) {
                 ${msg.username}
             </div>
 
-            <div class="text">
+            <div class="text ${isDM && hauntAngr ? 'haunt-angr' : ''}">
                 ${msg.content}
             </div>
 
@@ -176,7 +189,6 @@ function addMessage(msg) {
 
     container.appendChild(wrap);
 
-    // smart auto-scroll
     const nearBottom =
         container.scrollHeight - container.scrollTop - container.clientHeight < 120;
 
@@ -248,7 +260,7 @@ window.onload = async () => {
     updateDMPanel();
 };
 
-/* ---------------- ENTER KEY SUPPORT ---------------- */
+/* ---------------- ENTER KEY ---------------- */
 
 document.addEventListener("DOMContentLoaded", () => {
     const input = document.getElementById("messageInput");
