@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chronicle</title>
+
+  <link rel="stylesheet" href="style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+</head>
+
+<body>
+
+<div id="overlay">
+  <div id="loginBox">
+
+    <img src="assets/logo.png" class="logo">
+
+    <input id="username" placeholder="Username">
+
+    <input id="avatar" placeholder="Avatar Image URL">
+
+    <button onclick="enterChat()">
+      Enter Chronicle
+    </button>
+
+  </div>
+</div>
+
+<div id="chatContainer">
+
+  <div id="header">
+    CHRONICLE ARCHIVE
+  </div>
+
+  <div id="messages"></div>
+
+  <div id="inputArea">
+    <input id="messageInput" placeholder="Write...">
+
+    <button onclick="sendMessage()">
+      Send
+    </button>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+
+</body>
+</html>
