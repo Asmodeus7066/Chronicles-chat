@@ -1,6 +1,3 @@
-const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
-
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = "";
@@ -25,6 +22,15 @@ function enterChat() {
     document.getElementById("overlay").style.display = "none";
 }
 
+/* ---------------- DM PANEL ---------------- */
+
+function updateDMPanel() {
+    const panel = document.getElementById("dmPanel");
+    if (!panel) return;
+
+    panel.style.display = isDM ? "flex" : "none";
+}
+
 /* ---------------- DM MODE ---------------- */
 
 function enterDMMode() {
@@ -33,12 +39,24 @@ function enterDMMode() {
     if (pass === "Critical20") {
         isDM = true;
         localStorage.setItem("isDM", "true");
+
         alert("DM mode enabled");
 
-        loadMessages(); // 🔥 IMPORTANT: re-render old messages with delete buttons
+        loadMessages();
+        updateDMPanel(); // show DM panel
     } else {
         alert("Incorrect password");
     }
+}
+
+function toggleDMMode() {
+    isDM = false;
+    localStorage.setItem("isDM", "false");
+
+    alert("DM mode disabled");
+
+    loadMessages();
+    updateDMPanel(); // hide DM panel
 }
 
 function setUsernameForMessage() {
@@ -91,6 +109,27 @@ async function deleteMessage(id, element) {
     element.remove();
 }
 
+/* ---------------- DM TOOL: WIPE CHAT ---------------- */
+
+async function wipeAllMessages() {
+    if (!isDM) return;
+
+    const confirmWipe = confirm("Delete ALL messages?");
+    if (!confirmWipe) return;
+
+    const { error } = await client
+        .from("messages")
+        .delete()
+        .neq("id", 0); // deletes everything
+
+    if (error) {
+        console.error("Wipe error:", error);
+        return;
+    }
+
+    document.getElementById("messages").innerHTML = "";
+}
+
 /* ---------------- RENDER MESSAGE ---------------- */
 
 function addMessage(msg) {
@@ -134,7 +173,7 @@ function addMessage(msg) {
 
     container.appendChild(wrap);
 
-    // auto-scroll (safe)
+    // smart auto-scroll
     const nearBottom =
         container.scrollHeight - container.scrollTop - container.clientHeight < 120;
 
@@ -203,6 +242,7 @@ window.onload = async () => {
     }
 
     await loadMessages();
+    updateDMPanel();
 };
 
 /* ---------------- ENTER KEY SUPPORT ---------------- */
