@@ -79,6 +79,7 @@ async function deleteMessage(id, element) {
 function addMessage(msg) {
     const wrap = document.createElement("div");
     wrap.className = "message";
+    wrap.dataset.id = msg.id;
 
     wrap.innerHTML = `
         <img class="avatar"
@@ -115,7 +116,7 @@ function addMessage(msg) {
         document.getElementById("messages").scrollHeight;
 }
 
-/* ---------------- LOAD MESSAGES ---------------- */
+/* ---------------- LOAD HISTORY ---------------- */
 
 async function loadMessages() {
     const { data } = await client
@@ -141,6 +142,19 @@ client
         },
         (payload) => {
             addMessage(payload.new);
+        }
+    )
+    .on(
+        "postgres_changes",
+        {
+            event: "DELETE",
+            schema: "public",
+            table: "messages"
+        },
+        (payload) => {
+            const id = payload.old.id;
+            const el = document.querySelector(`.message[data-id="${id}"]`);
+            if (el) el.remove();
         }
     )
     .subscribe();
