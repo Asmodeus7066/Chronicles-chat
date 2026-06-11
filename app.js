@@ -73,16 +73,6 @@ function calculateDerivedTraits() {
 }
 
 /* ---------------- DM PANEL ---------------- */
-function toggleSheet() {
-    const panel = document.getElementById("sheetPanel");
-    if (!panel) return;
-
-    panel.classList.toggle("open");
-
-    if (panel.classList.contains("open")) {
-        renderPlayerSheet();
-    }
-}
 
 function updateDMPanel() {
     const panel = el("dmPanel");
@@ -91,6 +81,17 @@ function updateDMPanel() {
     panel.style.display = isDM ? "flex" : "none";
 
     if (isDM) loadCharacterList();
+}
+
+function toggleSheet() {
+    const panel = el("sheetPanel");
+    if (!panel) return;
+
+    panel.classList.toggle("open");
+
+    if (panel.classList.contains("open")) {
+        renderPlayerSheet();
+    }
 }
 
 /* ---------------- LOGIN ---------------- */
@@ -180,6 +181,7 @@ function buildStats(containerId, list, type) {
     container.innerHTML = "";
 
     list.forEach(name => {
+        if (!characterSheet[type]) characterSheet[type] = {};
         if (characterSheet[type][name] === undefined) {
             characterSheet[type][name] = 0;
         }
@@ -190,7 +192,10 @@ function buildStats(containerId, list, type) {
         row.innerHTML = `
             <span>${name}</span>
             <input type="number" value="${characterSheet[type][name]}"
-                onchange="characterSheet.${type}.${name}=Number(this.value)||0; calculateDerivedTraits();">
+                onchange="
+                    characterSheet.${type}.${name}=Number(this.value)||0;
+                    calculateDerivedTraits();
+                ">
         `;
 
         container.appendChild(row);
@@ -218,9 +223,10 @@ async function saveCharacterSheet() {
     alert("Character saved");
     el("charCreator").style.display = "none";
 }
+
 function renderPlayerSheet() {
-    const el = document.getElementById("sheetContent");
-    if (!el) return;
+    const box = document.getElementById("sheetContent");
+    if (!box) return;
 
     calculateDerivedTraits();
 
@@ -241,7 +247,7 @@ function renderPlayerSheet() {
         html += `${k}: ${v}<br>`;
     }
 
-    el.innerHTML = html;
+    box.innerHTML = html;
 }
 
 async function loadCharacterSheet() {
@@ -249,7 +255,7 @@ async function loadCharacterSheet() {
         .from("character_sheets")
         .select("*")
         .eq("username", currentUser)
-        .single();
+        .maybeSingle();
 
     if (!data) return;
 
@@ -292,11 +298,11 @@ async function inspectCharacter(username) {
         .from("character_sheets")
         .select("*")
         .eq("username", username)
-        .maybeSingle(); // safer than .single()
+        .maybeSingle();
 
     if (error || !data) {
-        box.innerHTML = "⚠ Character not found (may have been deleted)";
-        loadCharacterList(); // refresh DM list automatically
+        box.innerHTML = "⚠ Character not found";
+        loadCharacterList();
         return;
     }
 
@@ -327,19 +333,10 @@ async function inspectCharacter(username) {
 async function deleteCharacter(username) {
     if (!isDM) return;
 
-    const ok = confirm(`Delete ${username}?`);
-    if (!ok) return;
-
-    const { error } = await client
+    await client
         .from("character_sheets")
         .delete()
         .eq("username", username);
-
-    if (error) {
-        console.error(error);
-        alert("Delete failed");
-        return;
-    }
 
     el("characterInspect").innerHTML = "";
     loadCharacterList();
