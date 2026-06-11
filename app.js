@@ -43,35 +43,42 @@ const DERIVED_TRAITS = [
     "speed"
 ];
 
+function num(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+}
+
 function calculateDerivedTraits() {
     const a = characterSheet.attributes || {};
     const s = characterSheet.skills || {};
-    const d = characterSheet.derived || {};
 
-    const num = (v) => Number(v) || 0;
-
-    const size = num(d.size) || 5;
-
+    const strength = num(a.strength);
+    const dexterity = num(a.dexterity);
     const stamina = num(a.stamina);
-    const resolve = num(a.resolve);
-    const composure = num(a.composure);
-    const dex = num(a.dexterity);
+    const intelligence = num(a.intelligence);
     const wits = num(a.wits);
-    const str = num(a.strength);
-    const ath = num(s.athletics);
+    const resolve = num(a.resolve);
+    const presence = num(a.presence);
+    const manipulation = num(a.manipulation);
+    const composure = num(a.composure);
+
+    const athletics = num(s.athletics);
+
+    const size = 5;
+
+    const health = size + stamina;
+    const willpower = resolve + composure;
+    const initiative = dexterity + composure;
+    const defense = Math.min(wits, dexterity) + athletics;
+    const speed = strength + dexterity + 5;
 
     characterSheet.derived = {
         size,
-
-        health: num(d.health) || (size + stamina),
-
-        willpower: num(d.willpower) || (resolve + composure),
-
-        initiative: num(d.initiative) || (dex + composure),
-
-        defense: num(d.defense) || (Math.min(wits, dex) + ath),
-
-        speed: num(d.speed) || (str + dex + 5)
+        health,
+        willpower,
+        initiative,
+        defense,
+        speed
     };
 }
 
