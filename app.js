@@ -7,7 +7,6 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let currentUser = "";
 let currentAvatar = "";
 let isDM = localStorage.getItem("isDM") === "true";
-
 let hauntAngr = false;
 
 /* ---------------- CHARACTER SHEET ---------------- */
@@ -18,7 +17,7 @@ let characterSheet = {
     derived: {}
 };
 
-/* ---------------- CHRONICLES DATA ---------------- */
+/* ---------------- DATA ---------------- */
 
 const ATTRIBUTES = [
     "strength","dexterity","stamina",
@@ -32,21 +31,22 @@ const SKILLS = [
     "animal_ken","empathy","expression","intimidation","persuasion","socialize","streetwise","subterfuge"
 ];
 
-/* ---------------- DERIVED TRAITS ---------------- */
-
 const DERIVED_TRAITS = [
-    "size",
-    "health",
-    "willpower",
-    "initiative",
-    "defense",
-    "speed"
+    "size","health","willpower","initiative","defense","speed"
 ];
+
+/* ---------------- HELPERS ---------------- */
+
+function el(id) {
+    return document.getElementById(id);
+}
 
 function num(v) {
     const n = Number(v);
     return Number.isFinite(n) ? n : 0;
 }
+
+/* ---------------- DERIVED TRAITS ---------------- */
 
 function calculateDerivedTraits() {
     const a = characterSheet.attributes || {};
@@ -55,37 +55,21 @@ function calculateDerivedTraits() {
     const strength = num(a.strength);
     const dexterity = num(a.dexterity);
     const stamina = num(a.stamina);
-    const intelligence = num(a.intelligence);
     const wits = num(a.wits);
     const resolve = num(a.resolve);
-    const presence = num(a.presence);
-    const manipulation = num(a.manipulation);
     const composure = num(a.composure);
-
     const athletics = num(s.athletics);
 
     const size = 5;
 
-    const health = size + stamina;
-    const willpower = resolve + composure;
-    const initiative = dexterity + composure;
-    const defense = Math.min(wits, dexterity) + athletics;
-    const speed = strength + dexterity + 5;
-
     characterSheet.derived = {
         size,
-        health,
-        willpower,
-        initiative,
-        defense,
-        speed
+        health: size + stamina,
+        willpower: resolve + composure,
+        initiative: dexterity + composure,
+        defense: Math.min(wits, dexterity) + athletics,
+        speed: strength + dexterity + 5
     };
-}
-
-/* ---------------- HELPERS ---------------- */
-
-function el(id) {
-    return document.getElementById(id);
 }
 
 /* ---------------- DM PANEL ---------------- */
@@ -96,9 +80,7 @@ function updateDMPanel() {
 
     panel.style.display = isDM ? "flex" : "none";
 
-    if (isDM) {
-        loadCharacterList();
-    }
+    if (isDM) loadCharacterList();
 }
 
 /* ---------------- LOGIN ---------------- */
@@ -109,15 +91,12 @@ function enterChat() {
 
     if (!currentUser) return;
 
-    if (!currentAvatar) {
-        currentAvatar = "assets/default-avatar.png";
-    }
+    if (!currentAvatar) currentAvatar = "assets/default-avatar.png";
 
     localStorage.setItem("username", currentUser);
     localStorage.setItem("avatar", currentAvatar);
 
-    const overlay = el("overlay");
-    if (overlay) overlay.style.display = "none";
+    el("overlay").style.display = "none";
 
     openCharacterCreator();
 }
@@ -130,9 +109,7 @@ function enterDMMode() {
     if (pass === "Critical20") {
         isDM = true;
         localStorage.setItem("isDM", "true");
-
         alert("DM mode enabled");
-
         updateDMPanel();
         loadMessages();
     } else {
@@ -143,49 +120,30 @@ function enterDMMode() {
 function toggleDMMode() {
     isDM = false;
     localStorage.setItem("isDM", "false");
-
     hauntAngr = false;
-
     updateDMPanel();
     loadMessages();
-
-    alert("DM mode disabled");
 }
 
-/* ---------------- DM USERNAME OVERRIDE ---------------- */
+/* ---------------- CHAT DM TOOLS ---------------- */
 
 function setUsernameForMessage() {
     if (!isDM) return;
 
-    const newName = prompt("Set username (DM only):");
-
-    if (newName && newName.trim()) {
-        currentUser = newName.trim();
-        alert("Username set to: " + currentUser);
-    }
+    const n = prompt("Set username:");
+    if (n?.trim()) currentUser = n.trim();
 }
-
-/* ---------------- HAUNT ---------------- */
 
 function toggleHauntAngr() {
     if (!isDM) return;
-
     hauntAngr = !hauntAngr;
-    alert("Haunt-ANGR: " + (hauntAngr ? "ON" : "OFF"));
 }
-
-/* ---------------- WIPE CHAT ---------------- */
 
 async function wipeAllMessages() {
     if (!isDM) return;
 
-    await client
-        .from("messages")
-        .delete()
-        .neq("id", 0);
-
-    const container = el("messages");
-    if (container) container.innerHTML = "";
+    await client.from("messages").delete().neq("id", 0);
+    el("messages").innerHTML = "";
 }
 
 /* ---------------- CHARACTER CREATOR ---------------- */
@@ -203,7 +161,7 @@ function openCharacterCreator() {
     buildStats("derived", DERIVED_TRAITS, "derived");
 }
 
-/* ---------------- BUILD STATS ---------------- */
+/* ---------------- BUILD UI ---------------- */
 
 function buildStats(containerId, list, type) {
     const container = el(containerId);
@@ -221,55 +179,35 @@ function buildStats(containerId, list, type) {
 
         row.innerHTML = `
             <span>${name}</span>
-            <div>
-                <button onclick="changeStat('${type}','${name}',-1)">-</button>
-                <span id="${type}-${name}">${characterSheet[type][name]}</span>
-                <button onclick="changeStat('${type}','${name}',1)">+</button>
-            </div>
+            <input type="number" value="${characterSheet[type][name]}"
+                onchange="characterSheet.${type}.${name}=Number(this.value)||0; calculateDerivedTraits();">
         `;
 
         container.appendChild(row);
     });
 }
 
-/* ---------------- CHANGE STAT ---------------- */
-
-function changeStat(type, name, delta) {
-    characterSheet[type][name] += delta;
-
-    if (characterSheet[type][name] < 0) {
-        characterSheet[type][name] = 0;
-    }
-
-    const cell = el(`${type}-${name}`);
-    if (cell) cell.innerText = characterSheet[type][name];
-}
-
-/* ---------------- SAVE SHEET ---------------- */
+/* ---------------- SAVE / LOAD ---------------- */
 
 async function saveCharacterSheet() {
-    const { error } = await client
-        .from("character_sheets")
-        .upsert({
-            username: currentUser,
-            attributes: characterSheet.attributes,
-            skills: characterSheet.skills,
-            derived: characterSheet.derived
-        }, { onConflict: "username" });
+    calculateDerivedTraits();
+
+    const { error } = await client.from("character_sheets").upsert({
+        username: currentUser,
+        attributes: characterSheet.attributes,
+        skills: characterSheet.skills,
+        derived: characterSheet.derived
+    }, { onConflict: "username" });
 
     if (error) {
         console.error(error);
-        alert("Failed to save character");
+        alert("Save failed");
         return;
     }
 
-    alert("Character saved!");
-
-    const panel = el("charCreator");
-    if (panel) panel.style.display = "none";
+    alert("Character saved");
+    el("charCreator").style.display = "none";
 }
-
-/* ---------------- LOAD SHEET ---------------- */
 
 async function loadCharacterSheet() {
     const { data } = await client
@@ -285,7 +223,7 @@ async function loadCharacterSheet() {
     characterSheet.derived = data.derived || {};
 }
 
-/* ---------------- CHARACTER LIST (DM) ---------------- */
+/* ---------------- DM CHARACTER LIST ---------------- */
 
 async function loadCharacterList() {
     if (!isDM) return;
@@ -293,33 +231,21 @@ async function loadCharacterList() {
     const list = el("characterList");
     if (!list) return;
 
-    list.innerHTML = "Loading...";
-
-    const { data, error } = await client
+    const { data } = await client
         .from("character_sheets")
         .select("username");
 
-    if (error || !data) {
-        list.innerHTML = "Error loading characters";
-        return;
-    }
-
-    if (data.length === 0) {
-        list.innerHTML = "No characters found";
-        return;
-    }
-
     list.innerHTML = "";
 
-    data.forEach(c => {
+    (data || []).forEach(c => {
         const btn = document.createElement("button");
-        btn.innerText = c.username;
+        btn.textContent = c.username;
         btn.onclick = () => inspectCharacter(c.username);
         list.appendChild(btn);
     });
 }
 
-/* ---------------- INSPECT CHARACTER ---------------- */
+/* ---------------- INSPECT ---------------- */
 
 async function inspectCharacter(username) {
     const { data } = await client
@@ -331,7 +257,6 @@ async function inspectCharacter(username) {
     if (!data) return;
 
     const box = el("characterInspect");
-    if (!box) return;
 
     let html = `<strong>${username}</strong><br><br>`;
 
@@ -350,7 +275,32 @@ async function inspectCharacter(username) {
         html += `${k}: ${v}<br>`;
     }
 
+    html += `<br><button onclick="deleteCharacter('${username}')">Delete Character</button>`;
+
     box.innerHTML = html;
+}
+
+/* ---------------- DELETE CHARACTER ---------------- */
+
+async function deleteCharacter(username) {
+    if (!isDM) return;
+
+    const ok = confirm(`Delete ${username}?`);
+    if (!ok) return;
+
+    const { error } = await client
+        .from("character_sheets")
+        .delete()
+        .eq("username", username);
+
+    if (error) {
+        console.error(error);
+        alert("Delete failed");
+        return;
+    }
+
+    el("characterInspect").innerHTML = "";
+    loadCharacterList();
 }
 
 /* ---------------- CHAT ---------------- */
@@ -371,18 +321,6 @@ async function sendMessage() {
     input.value = "";
 }
 
-/* ---------------- DELETE MESSAGE ---------------- */
-
-async function deleteMessage(id, element) {
-    if (!isDM) return;
-
-    await client.from("messages").delete().eq("id", id);
-
-    element.remove();
-}
-
-/* ---------------- LOAD MESSAGES ---------------- */
-
 async function loadMessages() {
     const { data } = await client
         .from("messages")
@@ -390,67 +328,23 @@ async function loadMessages() {
         .order("created_at", { ascending: true });
 
     const container = el("messages");
-    if (!container) return;
-
     container.innerHTML = "";
-    data?.forEach(addMessage);
-}
 
-/* ---------------- RENDER MESSAGE ---------------- */
+    (data || []).forEach(addMessage);
+}
 
 function addMessage(msg) {
-    const container = el("messages");
-    if (!container) return;
-
     const wrap = document.createElement("div");
     wrap.className = "message";
-    wrap.dataset.id = msg.id;
 
     wrap.innerHTML = `
-        <img class="avatar" src="${msg.avatar || 'assets/default-avatar.png'}">
-
-        <div class="content">
-
-            <div class="username">${msg.username}</div>
-
-            <div class="text ${msg.haunt ? 'haunt-angr' : ''}">
-                ${msg.content}
-            </div>
-
-            <div class="time">
-                ${new Date(msg.created_at).toLocaleString()}
-            </div>
-
-            ${isDM ? `<button class="dm-delete">Delete</button>` : ""}
-        </div>
+        <div><b>${msg.username}</b></div>
+        <div class="${msg.haunt ? 'haunt-angr' : ''}">${msg.content}</div>
+        <small>${new Date(msg.created_at).toLocaleString()}</small>
     `;
 
-    const btn = wrap.querySelector(".dm-delete");
-    if (btn) {
-        btn.onclick = () => deleteMessage(msg.id, wrap);
-    }
-
-    container.appendChild(wrap);
+    el("messages").appendChild(wrap);
 }
-
-/* ---------------- REALTIME ---------------- */
-
-client
-    .channel("chat")
-    .on("postgres_changes", {
-        event: "INSERT",
-        schema: "public",
-        table: "messages"
-    }, payload => addMessage(payload.new))
-    .on("postgres_changes", {
-        event: "DELETE",
-        schema: "public",
-        table: "messages"
-    }, payload => {
-        const el = document.querySelector(`.message[data-id="${payload.old.id}"]`);
-        if (el) el.remove();
-    })
-    .subscribe();
 
 /* ---------------- STARTUP ---------------- */
 
@@ -458,57 +352,10 @@ window.onload = async () => {
     currentUser = localStorage.getItem("username") || "";
     currentAvatar = localStorage.getItem("avatar") || "";
 
-    const overlay = el("overlay");
-    if (currentUser && overlay) overlay.style.display = "none";
+    if (currentUser) el("overlay").style.display = "none";
 
     updateDMPanel();
-
-    if (currentUser) {
-        openCharacterCreator();
-    }
 
     await loadCharacterSheet();
     await loadMessages();
-
-    updateDMPanel();
 };
-
-/* ---------------- ENTER KEY ---------------- */
-
-document.addEventListener("DOMContentLoaded", () => {
-    const input = el("messageInput");
-
-    if (input) {
-        input.addEventListener("keydown", e => {
-            if (e.key === "Enter") sendMessage();
-        });
-    }
-});
-
-async function deleteCharacter(username) {
-    if (!isDM) return;
-
-    const confirmDelete = confirm(
-        `Delete character "${username}"? This cannot be undone.`
-    );
-
-    if (!confirmDelete) return;
-
-    const { error } = await client
-        .from("character_sheets")
-        .delete()
-        .eq("username", username);
-
-    if (error) {
-        console.error(error);
-        alert("Failed to delete character");
-        return;
-    }
-
-    alert("Character deleted");
-
-    loadCharacterList();
-
-    const box = el("characterInspect");
-    if (box) box.innerHTML = "";
-}
