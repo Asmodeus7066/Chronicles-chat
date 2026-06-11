@@ -484,3 +484,31 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+
+async function deleteCharacter(username) {
+    if (!isDM) return;
+
+    const confirmDelete = confirm(
+        `Delete character "${username}"? This cannot be undone.`
+    );
+
+    if (!confirmDelete) return;
+
+    const { error } = await client
+        .from("character_sheets")
+        .delete()
+        .eq("username", username);
+
+    if (error) {
+        console.error(error);
+        alert("Failed to delete character");
+        return;
+    }
+
+    alert("Character deleted");
+
+    loadCharacterList();
+
+    const box = el("characterInspect");
+    if (box) box.innerHTML = "";
+}
