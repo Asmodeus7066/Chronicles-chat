@@ -283,15 +283,22 @@ async function loadCharacterList() {
 /* ---------------- INSPECT ---------------- */
 
 async function inspectCharacter(username) {
-    const { data } = await client
+    const box = document.getElementById("characterInspect");
+    if (!box) return;
+
+    box.innerHTML = "Loading...";
+
+    const { data, error } = await client
         .from("character_sheets")
         .select("*")
         .eq("username", username)
-        .single();
+        .maybeSingle(); // safer than .single()
 
-    if (!data) return;
-
-    const box = el("characterInspect");
+    if (error || !data) {
+        box.innerHTML = "⚠ Character not found (may have been deleted)";
+        loadCharacterList(); // refresh DM list automatically
+        return;
+    }
 
     let html = `<strong>${username}</strong><br><br>`;
 
