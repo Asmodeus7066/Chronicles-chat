@@ -153,3 +153,52 @@ html, body {
     border-top: 1px solid #444;
     padding-top: 5px;
 }
+#sheetPanel {
+    position: fixed;
+    right: -320px;
+    top: 0;
+    width: 320px;
+    height: 100vh;
+    background: #1a1a1a;
+    border-left: 1px solid #444;
+    color: #ddd;
+    transition: right 0.3s ease;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+}
+
+#sheetPanel.open {
+    right: 0;
+}
+
+#sheetHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #444;
+}
+
+#sheetContent {
+    padding: 10px;
+    overflow-y: auto;
+    flex: 1;
+    font-size: 14px;
+}
+
+#openSheetBtn {
+    position: fixed;
+    right: 10px;
+    bottom: 10px;
+    background: #222;
+    color: #ddd;
+    border: 1px solid #444;
+    padding: 8px;
+    cursor: pointer;
+    z-index: 9998;
+}
+
+#openSheetBtn:hover {
+    background: #333;
+}
