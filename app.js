@@ -14,7 +14,8 @@ let hauntAngr = false;
 
 let characterSheet = {
     attributes: {},
-    skills: {}
+    skills: {},
+    derived: {}
 };
 
 /* ---------------- CHRONICLES DATA ---------------- */
@@ -30,6 +31,46 @@ const SKILLS = [
     "athletics","brawl","drive","firearms","larceny","stealth","survival","weaponry",
     "animal_ken","empathy","expression","intimidation","persuasion","socialize","streetwise","subterfuge"
 ];
+
+/* ---------------- DERIVED TRAITS ---------------- */
+
+const DERIVED_TRAITS = [
+    "size",
+    "health",
+    "willpower",
+    "initiative",
+    "defense",
+    "speed"
+];
+
+function calculateDerivedTraits() {
+    const a = characterSheet.attributes;
+    const s = characterSheet.skills;
+
+    characterSheet.derived.size =
+        characterSheet.derived.size ?? 5;
+
+    characterSheet.derived.health =
+        characterSheet.derived.health ??
+        (characterSheet.derived.size + (a.stamina || 0));
+
+    characterSheet.derived.willpower =
+        characterSheet.derived.willpower ??
+        ((a.resolve || 0) + (a.composure || 0));
+
+    characterSheet.derived.initiative =
+        characterSheet.derived.initiative ??
+        ((a.dexterity || 0) + (a.composure || 0));
+
+    characterSheet.derived.defense =
+        characterSheet.derived.defense ??
+        (Math.min(a.wits || 0, a.dexterity || 0) +
+         (s.athletics || 0));
+
+    characterSheet.derived.speed =
+        characterSheet.derived.speed ??
+        ((a.strength || 0) + (a.dexterity || 0) + 5);
+}
 
 /* ---------------- HELPERS ---------------- */
 
@@ -145,8 +186,11 @@ function openCharacterCreator() {
 
     panel.style.display = "block";
 
+    calculateDerivedTraits();
+
     buildStats("attributes", ATTRIBUTES, "attributes");
     buildStats("skills", SKILLS, "skills");
+    buildStats("derived", DERIVED_TRAITS, "derived");
 }
 
 /* ---------------- BUILD STATS ---------------- */
@@ -199,7 +243,8 @@ async function saveCharacterSheet() {
         .upsert({
             username: currentUser,
             attributes: characterSheet.attributes,
-            skills: characterSheet.skills
+            skills: characterSheet.skills,
+            derived: characterSheet.derived
         }, { onConflict: "username" });
 
     if (error) {
@@ -227,6 +272,7 @@ async function loadCharacterSheet() {
 
     characterSheet.attributes = data.attributes || {};
     characterSheet.skills = data.skills || {};
+    characterSheet.derived = data.derived || {};
 }
 
 /* ---------------- CHARACTER LIST (DM) ---------------- */
@@ -243,15 +289,12 @@ async function loadCharacterList() {
         .from("character_sheets")
         .select("username");
 
-    console.log("CHARACTER LIST DATA:", data);
-    console.log("CHARACTER LIST ERROR:", error);
-
-    if (error) {
+    if (error || !data) {
         list.innerHTML = "Error loading characters";
         return;
     }
 
-    if (!data || data.length === 0) {
+    if (data.length === 0) {
         list.innerHTML = "No characters found";
         return;
     }
@@ -259,16 +302,13 @@ async function loadCharacterList() {
     list.innerHTML = "";
 
     data.forEach(c => {
-        if (!c?.username) return;
-
         const btn = document.createElement("button");
         btn.innerText = c.username;
-
         btn.onclick = () => inspectCharacter(c.username);
-
         list.appendChild(btn);
     });
 }
+
 /* ---------------- INSPECT CHARACTER ---------------- */
 
 async function inspectCharacter(username) {
@@ -292,6 +332,11 @@ async function inspectCharacter(username) {
 
     html += `<br><u>Skills</u><br>`;
     for (const [k, v] of Object.entries(data.skills || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    html += `<br><u>Derived</u><br>`;
+    for (const [k, v] of Object.entries(data.derived || {})) {
         html += `${k}: ${v}<br>`;
     }
 
