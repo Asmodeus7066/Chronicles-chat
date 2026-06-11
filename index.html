@@ -10,13 +10,13 @@
 
 <body>
 
+<!-- LOGIN -->
 <div id="overlay">
   <div id="loginBox">
 
     <img src="assets/logo.png" class="logo">
 
     <input id="username" placeholder="Username">
-
     <input id="avatar" placeholder="Avatar Image URL">
 
     <button onclick="enterChat()">
@@ -25,6 +25,8 @@
 
   </div>
 </div>
+
+<!-- CHARACTER CREATOR -->
 <div id="charCreator" style="display:none;">
     <h2>Character Sheet</h2>
 
@@ -37,7 +39,8 @@
     <h3>Derived Traits</h3>
     <div id="derived"></div>
 
-    <button onclick="recalculateDerived()">
+    <!-- FIX: this function now exists as calculateDerivedTraits() -->
+    <button onclick="calculateDerivedTraits(); openCharacterCreator();">
         Recalculate Derived Traits
     </button>
 
@@ -49,8 +52,7 @@
     </button>
 </div>
 
-    <button onclick="saveCharacterSheet()">Save Character</button>
-</div>
+<!-- CHAT -->
 <div id="chatContainer">
 
   <div id="header">
@@ -70,14 +72,16 @@
 
 </div>
 
-<!-- 🔥 DM CONTROL PANEL (only visible in DM mode) -->
+<!-- DM PANEL -->
 <div id="dmPanel">
     <div class="dm-title">DM PANEL</div>
 
     <button onclick="setUsernameForMessage()">Change Username</button>
 
     <button onclick="toggleHauntAngr()">Haunt-ANGR</button>
+
     <button onclick="wipeAllMessages()">Wipe All Messages</button>
+
     <button onclick="toggleDMMode()">Exit DM Mode</button>
 
     <hr>
@@ -87,6 +91,7 @@
 
     <div id="characterInspect"></div>
 </div>
+
 <script src="app.js"></script>
 
 </body>
