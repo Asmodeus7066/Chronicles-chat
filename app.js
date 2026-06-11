@@ -73,6 +73,16 @@ function calculateDerivedTraits() {
 }
 
 /* ---------------- DM PANEL ---------------- */
+function toggleSheet() {
+    const panel = document.getElementById("sheetPanel");
+    if (!panel) return;
+
+    panel.classList.toggle("open");
+
+    if (panel.classList.contains("open")) {
+        renderPlayerSheet();
+    }
+}
 
 function updateDMPanel() {
     const panel = el("dmPanel");
@@ -207,6 +217,31 @@ async function saveCharacterSheet() {
 
     alert("Character saved");
     el("charCreator").style.display = "none";
+}
+function renderPlayerSheet() {
+    const el = document.getElementById("sheetContent");
+    if (!el) return;
+
+    calculateDerivedTraits();
+
+    let html = `<h3>${currentUser}</h3><br>`;
+
+    html += `<strong>Attributes</strong><br>`;
+    for (const [k, v] of Object.entries(characterSheet.attributes || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    html += `<br><strong>Skills</strong><br>`;
+    for (const [k, v] of Object.entries(characterSheet.skills || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    html += `<br><strong>Derived</strong><br>`;
+    for (const [k, v] of Object.entries(characterSheet.derived || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    el.innerHTML = html;
 }
 
 async function loadCharacterSheet() {
