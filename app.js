@@ -87,11 +87,25 @@ async function openNotes(username) {
 
     box.innerHTML = "Loading notes...";
 
-    const { data } = await client
+    let { data, error } = await client
         .from("user_notes")
         .select("notes")
         .eq("username", username)
         .maybeSingle();
+
+    // if no row exists → create it
+    if (!data) {
+        const insert = await client
+            .from("user_notes")
+            .insert({
+                username,
+                notes: ""
+            })
+            .select()
+            .maybeSingle();
+
+        data = insert.data;
+    }
 
     const notes = data?.notes || "";
 
@@ -127,7 +141,7 @@ async function saveNotes() {
     alert("Notes saved");
 }
 
-/* ---------------- CHARACTER LIST (DM) ---------------- */
+/* ---------------- DM USER LIST ---------------- */
 
 async function loadCharacterList() {
     if (!isDM) return;
@@ -141,12 +155,11 @@ async function loadCharacterList() {
 
     list.innerHTML = "";
 
-    (data || []).forEach(c => {
+    (data || []).forEach(user => {
         const btn = document.createElement("button");
-        btn.textContent = c.username;
+        btn.textContent = user.username;
 
-        // OPEN NOTES INSTEAD OF CHARACTER SHEETS
-        btn.onclick = () => openNotes(c.username);
+        btn.onclick = () => openNotes(user.username);
 
         list.appendChild(btn);
     });
@@ -179,20 +192,18 @@ async function loadMessages() {
     const container = el("messages");
     container.innerHTML = "";
 
-    (data || []).forEach(addMessage);
-}
+    (data || []).forEach(msg => {
+        const wrap = document.createElement("div");
+        wrap.className = "message";
 
-function addMessage(msg) {
-    const wrap = document.createElement("div");
-    wrap.className = "message";
+        wrap.innerHTML = `
+            <div><b>${msg.username}</b></div>
+            <div class="${msg.haunt ? "haunt-angr" : ""}">${msg.content}</div>
+            <small>${new Date(msg.created_at).toLocaleString()}</small>
+        `;
 
-    wrap.innerHTML = `
-        <div><b>${msg.username}</b></div>
-        <div class="${msg.haunt ? "haunt-angr" : ""}">${msg.content}</div>
-        <small>${new Date(msg.created_at).toLocaleString()}</small>
-    `;
-
-    el("messages").appendChild(wrap);
+        container.appendChild(wrap);
+    });
 }
 
 /* ---------------- DM TOOLS ---------------- */
