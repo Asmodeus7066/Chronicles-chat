@@ -170,14 +170,20 @@ client
 /* ---------------- STARTUP ---------------- */
 
 window.onload = async () => {
-    currentUser = localStorage.getItem("username") || "";
-    currentAvatar = localStorage.getItem("avatar") || "";
+    // FORCE FRESH SESSION (no caching)
+    localStorage.removeItem("username");
+    localStorage.removeItem("avatar");
+    localStorage.removeItem("isDM");
 
-    if (currentUser) {
-        el("overlay").style.display = "none";
-    }
+    currentUser = "";
+    currentAvatar = "";
+    isDM = false;
+    hauntAngr = false;
 
-    updateDMPanel();
+    el("overlay").style.display = "flex";
+    el("dmPanel").style.display = "none";
+    el("sheetPanel").classList.remove("open");
+
     await loadMessages();
 };
 
