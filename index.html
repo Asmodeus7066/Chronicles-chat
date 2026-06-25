@@ -26,32 +26,6 @@
   </div>
 </div>
 
-<!-- CHARACTER CREATOR -->
-<div id="charCreator" style="display:none;">
-    <h2>Character Sheet</h2>
-
-    <h3>Attributes</h3>
-    <div id="attributes"></div>
-
-    <h3>Skills</h3>
-    <div id="skills"></div>
-
-    <h3>Derived Traits</h3>
-    <div id="derived"></div>
-
-    <!-- FIX: this function now exists as calculateDerivedTraits() -->
-    <button onclick="calculateDerivedTraits(); openCharacterCreator();">
-        Recalculate Derived Traits
-    </button>
-
-    <h3>Other</h3>
-    <div id="otherStats"></div>
-
-    <button onclick="saveCharacterSheet()">
-        Save Character
-    </button>
-</div>
-
 <!-- CHAT -->
 <div id="chatContainer">
 
@@ -85,11 +59,7 @@
     <button onclick="toggleDMMode()">Exit DM Mode</button>
 
     <hr>
-
-    <div class="dm-title">Characters</div>
-    <div id="characterList"></div>
-
-    <div id="characterInspect"></div>
+  
 </div>
 
 <script src="app.js"></script>
