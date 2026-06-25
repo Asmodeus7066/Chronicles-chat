@@ -1,6 +1,7 @@
 const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let hasLoadedCharacter = false;
 
 /* ---------------- STATE ---------------- */
 
@@ -46,6 +47,13 @@ function num(v) {
     return Number.isFinite(n) ? n : 0;
 }
 
+function hasCharacter() {
+    const a = characterSheet.attributes || {};
+    const s = characterSheet.skills || {};
+
+    // if any stat exists, assume character exists
+    return Object.keys(a).length > 0 || Object.keys(s).length > 0;
+}
 /* ---------------- DERIVED TRAITS ---------------- */
 
 function calculateDerivedTraits() {
@@ -87,11 +95,21 @@ function toggleSheet() {
     const panel = el("sheetPanel");
     if (!panel) return;
 
+    // ❗ If no character exists → open creator instead
+    if (!hasCharacter()) {
+        const creator = el("charCreator");
+        if (creator) {
+            creator.style.display = "block";
+        }
+        return;
+    }
+
     panel.classList.toggle("open");
 
     if (panel.classList.contains("open")) {
         renderPlayerSheet();
     }
+}
 }
 
 /* ---------------- LOGIN ---------------- */
@@ -251,6 +269,7 @@ function renderPlayerSheet() {
 }
 
 async function loadCharacterSheet() {
+    hasLoadedCharacter = !!data;
     const { data } = await client
         .from("character_sheets")
         .select("*")
@@ -262,6 +281,10 @@ async function loadCharacterSheet() {
     characterSheet.attributes = data.attributes || {};
     characterSheet.skills = data.skills || {};
     characterSheet.derived = data.derived || {};
+}
+
+function hasCharacter() {
+    return hasLoadedCharacter;
 }
 
 /* ---------------- DM CHARACTER LIST ---------------- */
