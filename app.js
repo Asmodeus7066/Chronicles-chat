@@ -47,13 +47,12 @@ function num(v) {
     return Number.isFinite(n) ? n : 0;
 }
 
-function hasCharacter() {
-    const a = characterSheet.attributes || {};
-    const s = characterSheet.skills || {};
+/* ---------------- CHARACTER CHECK ---------------- */
 
-    // if any stat exists, assume character exists
-    return Object.keys(a).length > 0 || Object.keys(s).length > 0;
+function hasCharacter() {
+    return hasLoadedCharacter;
 }
+
 /* ---------------- DERIVED TRAITS ---------------- */
 
 function calculateDerivedTraits() {
@@ -95,12 +94,9 @@ function toggleSheet() {
     const panel = el("sheetPanel");
     if (!panel) return;
 
-    // ❗ If no character exists → open creator instead
     if (!hasCharacter()) {
         const creator = el("charCreator");
-        if (creator) {
-            creator.style.display = "block";
-        }
+        if (creator) creator.style.display = "block";
         return;
     }
 
@@ -109,7 +105,6 @@ function toggleSheet() {
     if (panel.classList.contains("open")) {
         renderPlayerSheet();
     }
-}
 }
 
 /* ---------------- LOGIN ---------------- */
@@ -158,7 +153,6 @@ function toggleDMMode() {
 
 function setUsernameForMessage() {
     if (!isDM) return;
-
     const n = prompt("Set username:");
     if (n?.trim()) currentUser = n.trim();
 }
@@ -210,10 +204,7 @@ function buildStats(containerId, list, type) {
         row.innerHTML = `
             <span>${name}</span>
             <input type="number" value="${characterSheet[type][name]}"
-                onchange="
-                    characterSheet.${type}.${name}=Number(this.value)||0;
-                    calculateDerivedTraits();
-                ">
+                onchange="characterSheet.${type}.${name}=Number(this.value)||0; calculateDerivedTraits();">
         `;
 
         container.appendChild(row);
@@ -269,22 +260,26 @@ function renderPlayerSheet() {
 }
 
 async function loadCharacterSheet() {
-    hasLoadedCharacter = !!data;
     const { data } = await client
         .from("character_sheets")
         .select("*")
         .eq("username", currentUser)
         .maybeSingle();
 
-    if (!data) return;
+    hasLoadedCharacter = !!data;
+
+    if (!data) {
+        characterSheet = {
+            attributes: {},
+            skills: {},
+            derived: {}
+        };
+        return;
+    }
 
     characterSheet.attributes = data.attributes || {};
     characterSheet.skills = data.skills || {};
     characterSheet.derived = data.derived || {};
-}
-
-function hasCharacter() {
-    return hasLoadedCharacter;
 }
 
 /* ---------------- DM CHARACTER LIST ---------------- */
@@ -317,14 +312,14 @@ async function inspectCharacter(username) {
 
     box.innerHTML = "Loading...";
 
-    const { data, error } = await client
+    const { data } = await client
         .from("character_sheets")
         .select("*")
         .eq("username", username)
         .maybeSingle();
 
-    if (error || !data) {
-        box.innerHTML = "⚠ Character not found";
+    if (!data) {
+        box.innerHTML = "⚠ Character not found (deleted)";
         loadCharacterList();
         return;
     }
@@ -347,7 +342,6 @@ async function inspectCharacter(username) {
     }
 
     html += `<br><button onclick="deleteCharacter('${username}')">Delete Character</button>`;
-
     box.innerHTML = html;
 }
 
@@ -392,20 +386,16 @@ async function loadMessages() {
     const container = el("messages");
     container.innerHTML = "";
 
-    (data || []).forEach(addMessage);
-}
-
-function addMessage(msg) {
-    const wrap = document.createElement("div");
-    wrap.className = "message";
-
-    wrap.innerHTML = `
-        <div><b>${msg.username}</b></div>
-        <div class="${msg.haunt ? 'haunt-angr' : ''}">${msg.content}</div>
-        <small>${new Date(msg.created_at).toLocaleString()}</small>
-    `;
-
-    el("messages").appendChild(wrap);
+    (data || []).forEach(msg => {
+        const wrap = document.createElement("div");
+        wrap.className = "message";
+        wrap.innerHTML = `
+            <div><b>${msg.username}</b></div>
+            <div class="${msg.haunt ? "haunt-angr" : ""}">${msg.content}</div>
+            <small>${new Date(msg.created_at).toLocaleString()}</small>
+        `;
+        container.appendChild(wrap);
+    });
 }
 
 /* ---------------- STARTUP ---------------- */
