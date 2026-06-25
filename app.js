@@ -7,8 +7,10 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = "";
 let currentAvatar = "";
-let isDM = false;
+let isDM = localStorage.getItem("isDM") === "true";
 let hauntAngr = false;
+
+let selectedNoteUser = "";
 
 /* ---------------- HELPERS ---------------- */
 
@@ -18,7 +20,7 @@ function el(id) {
 
 /* ---------------- LOGIN ---------------- */
 
-async function enterChat() {
+function enterChat() {
     currentUser = el("username")?.value || "";
     currentAvatar = el("avatar")?.value || "";
 
@@ -31,7 +33,8 @@ async function enterChat() {
 
     el("overlay").style.display = "none";
 
-    await loadMessages();
+    loadMessages();
+    updateDMPanel();
 }
 
 /* ---------------- DM MODE ---------------- */
@@ -41,7 +44,10 @@ function enterDMMode() {
 
     if (pass === "Critical20") {
         isDM = true;
+        localStorage.setItem("isDM", "true");
+
         alert("DM mode enabled");
+
         updateDMPanel();
         loadMessages();
     } else {
@@ -51,6 +57,7 @@ function enterDMMode() {
 
 function toggleDMMode() {
     isDM = false;
+    localStorage.setItem("isDM", "false");
     hauntAngr = false;
 
     updateDMPanel();
@@ -64,6 +71,85 @@ function updateDMPanel() {
     if (!panel) return;
 
     panel.style.display = isDM ? "flex" : "none";
+
+    if (isDM) loadCharacterList();
+}
+
+/* ---------------- NOTES SYSTEM ---------------- */
+
+async function openNotes(username) {
+    if (!isDM) return;
+
+    selectedNoteUser = username;
+
+    const box = el("characterInspect");
+    if (!box) return;
+
+    box.innerHTML = "Loading notes...";
+
+    const { data } = await client
+        .from("user_notes")
+        .select("notes")
+        .eq("username", username)
+        .maybeSingle();
+
+    const notes = data?.notes || "";
+
+    box.innerHTML = `
+        <h3>Notes for ${username}</h3>
+
+        <textarea id="dmNotesBox" style="width:100%; height:160px;">${notes}</textarea>
+
+        <br><br>
+
+        <button onclick="saveNotes()">Save Notes</button>
+    `;
+}
+
+async function saveNotes() {
+    if (!isDM || !selectedNoteUser) return;
+
+    const text = el("dmNotesBox")?.value || "";
+
+    const { error } = await client
+        .from("user_notes")
+        .upsert({
+            username: selectedNoteUser,
+            notes: text
+        }, { onConflict: "username" });
+
+    if (error) {
+        console.error(error);
+        alert("Failed to save notes");
+        return;
+    }
+
+    alert("Notes saved");
+}
+
+/* ---------------- CHARACTER LIST (DM) ---------------- */
+
+async function loadCharacterList() {
+    if (!isDM) return;
+
+    const list = el("characterList");
+    if (!list) return;
+
+    const { data } = await client
+        .from("character_sheets")
+        .select("username");
+
+    list.innerHTML = "";
+
+    (data || []).forEach(c => {
+        const btn = document.createElement("button");
+        btn.textContent = c.username;
+
+        // OPEN NOTES INSTEAD OF CHARACTER SHEETS
+        btn.onclick = () => openNotes(c.username);
+
+        list.appendChild(btn);
+    });
 }
 
 /* ---------------- CHAT ---------------- */
@@ -72,7 +158,7 @@ async function sendMessage() {
     const input = el("messageInput");
     const text = input?.value.trim();
 
-    if (!text || !currentUser) return;
+    if (!text) return;
 
     await client.from("messages").insert({
         username: currentUser,
@@ -82,7 +168,6 @@ async function sendMessage() {
     });
 
     input.value = "";
-    loadMessages();
 }
 
 async function loadMessages() {
@@ -92,8 +177,6 @@ async function loadMessages() {
         .order("created_at", { ascending: true });
 
     const container = el("messages");
-    if (!container) return;
-
     container.innerHTML = "";
 
     (data || []).forEach(addMessage);
@@ -109,7 +192,7 @@ function addMessage(msg) {
         <small>${new Date(msg.created_at).toLocaleString()}</small>
     `;
 
-    el("messages")?.appendChild(wrap);
+    el("messages").appendChild(wrap);
 }
 
 /* ---------------- DM TOOLS ---------------- */
@@ -133,25 +216,14 @@ async function wipeAllMessages() {
     el("messages").innerHTML = "";
 }
 
-/* ---------------- SESSION RESET (IMPORTANT FIX) ---------------- */
-
-function hardResetSession() {
-    localStorage.clear();
-    sessionStorage.clear();
-    location.reload();
-}
-
 /* ---------------- STARTUP ---------------- */
 
 window.onload = async () => {
-    // ALWAYS force fresh session state
-    currentUser = "";
-    currentAvatar = "";
-    isDM = false;
-    hauntAngr = false;
+    currentUser = localStorage.getItem("username") || "";
+    currentAvatar = localStorage.getItem("avatar") || "";
 
-    el("overlay").style.display = "flex";
-    if (el("dmPanel")) el("dmPanel").style.display = "none";
+    if (currentUser) el("overlay").style.display = "none";
 
-    await loadMessages();
+    updateDMPanel();
+    loadMessages();
 };
