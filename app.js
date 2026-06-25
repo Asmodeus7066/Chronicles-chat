@@ -201,7 +201,34 @@ function enterChat() {
 
     el("overlay").style.display = "none";
 }
+function enterDMMode() {
+    const pass = prompt("Enter DM password:");
 
+    if (pass === "Critical20") {
+        isDM = true;
+        localStorage.setItem("isDM", "true");
+
+        alert("DM mode enabled");
+
+        updateDMPanel?.();
+        loadCharacterList?.();
+        loadMessages?.();
+    } else {
+        alert("Incorrect password");
+    }
+}
+
+function toggleDMMode() {
+    isDM = false;
+    localStorage.setItem("isDM", "false");
+
+    hauntAngr = false;
+
+    updateDMPanel?.();
+    loadMessages?.();
+
+    alert("DM mode disabled");
+}
 /* ---------------- CHAT OPEN SHEET BUTTON FIX ---------------- */
 
 document.addEventListener("DOMContentLoaded", () => {
