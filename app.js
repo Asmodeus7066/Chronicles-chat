@@ -1,6 +1,5 @@
 const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl5Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
-
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ---------------- STATE ---------------- */
@@ -9,15 +8,16 @@ let currentUser = "";
 let currentAvatar = "";
 let isDM = localStorage.getItem("isDM") === "true";
 let hauntAngr = false;
-let hasLoadedCharacter = false;
 
-/* ---------------- CHARACTER ---------------- */
+/* ---------------- CHARACTER SHEET ---------------- */
 
 let characterSheet = {
     attributes: {},
     skills: {},
     derived: {}
 };
+
+/* ---------------- DATA ---------------- */
 
 const ATTRIBUTES = [
     "strength","dexterity","stamina",
@@ -46,15 +46,7 @@ function num(v) {
     return Number.isFinite(n) ? n : 0;
 }
 
-/* ---------------- CHARACTER CHECK ---------------- */
-
-function hasCharacter() {
-    return hasLoadedCharacter &&
-        (Object.keys(characterSheet.attributes || {}).length > 0 ||
-         Object.keys(characterSheet.skills || {}).length > 0);
-}
-
-/* ---------------- DERIVED ---------------- */
+/* ---------------- DERIVED TRAITS ---------------- */
 
 function calculateDerivedTraits() {
     const a = characterSheet.attributes || {};
@@ -80,30 +72,107 @@ function calculateDerivedTraits() {
     };
 }
 
-/* ---------------- CHARACTER UI ---------------- */
+/* ---------------- DM PANEL ---------------- */
+
+function updateDMPanel() {
+    const panel = el("dmPanel");
+    if (!panel) return;
+
+    panel.style.display = isDM ? "flex" : "none";
+
+    if (isDM) loadCharacterList();
+}
 
 function toggleSheet() {
+    const panel = el("sheetPanel");
+    if (!panel) return;
+
+    panel.classList.toggle("open");
+
+    if (panel.classList.contains("open")) {
+        renderPlayerSheet();
+    }
+}
+
+/* ---------------- LOGIN ---------------- */
+
+function enterChat() {
+    currentUser = el("username")?.value || "";
+    currentAvatar = el("avatar")?.value || "";
+
+    if (!currentUser) return;
+
+    if (!currentAvatar) currentAvatar = "assets/default-avatar.png";
+
+    localStorage.setItem("username", currentUser);
+    localStorage.setItem("avatar", currentAvatar);
+
+    el("overlay").style.display = "none";
+
+    openCharacterCreator();
+}
+
+/* ---------------- DM MODE ---------------- */
+
+function enterDMMode() {
+    const pass = prompt("Enter DM password:");
+
+    if (pass === "Critical20") {
+        isDM = true;
+        localStorage.setItem("isDM", "true");
+        alert("DM mode enabled");
+        updateDMPanel();
+        loadMessages();
+    } else {
+        alert("Incorrect password");
+    }
+}
+
+function toggleDMMode() {
+    isDM = false;
+    localStorage.setItem("isDM", "false");
+    hauntAngr = false;
+    updateDMPanel();
+    loadMessages();
+}
+
+/* ---------------- CHAT DM TOOLS ---------------- */
+
+function setUsernameForMessage() {
+    if (!isDM) return;
+
+    const n = prompt("Set username:");
+    if (n?.trim()) currentUser = n.trim();
+}
+
+function toggleHauntAngr() {
+    if (!isDM) return;
+    hauntAngr = !hauntAngr;
+}
+
+async function wipeAllMessages() {
+    if (!isDM) return;
+
+    await client.from("messages").delete().neq("id", 0);
+    el("messages").innerHTML = "";
+}
+
+/* ---------------- CHARACTER CREATOR ---------------- */
+
+function openCharacterCreator() {
     const panel = el("charCreator");
     if (!panel) return;
 
     panel.style.display = "block";
 
-    if (!hasCharacter()) {
-        characterSheet.attributes ||= {};
-        characterSheet.skills ||= {};
-        characterSheet.derived ||= {};
-    }
-
-    renderCharacterEditor();
-}
-
-function renderCharacterEditor() {
     calculateDerivedTraits();
 
     buildStats("attributes", ATTRIBUTES, "attributes");
     buildStats("skills", SKILLS, "skills");
     buildStats("derived", DERIVED_TRAITS, "derived");
 }
+
+/* ---------------- BUILD UI ---------------- */
 
 function buildStats(containerId, list, type) {
     const container = el(containerId);
@@ -122,8 +191,7 @@ function buildStats(containerId, list, type) {
 
         row.innerHTML = `
             <span>${name}</span>
-            <input type="number"
-                value="${characterSheet[type][name]}"
+            <input type="number" value="${characterSheet[type][name]}"
                 onchange="
                     characterSheet.${type}.${name}=Number(this.value)||0;
                     calculateDerivedTraits();
@@ -134,28 +202,7 @@ function buildStats(containerId, list, type) {
     });
 }
 
-/* ---------------- LOAD CHARACTER ---------------- */
-
-async function loadCharacterSheet() {
-    const { data } = await client
-        .from("character_sheets")
-        .select("*")
-        .eq("username", currentUser)
-        .maybeSingle();
-
-    if (!data) {
-        hasLoadedCharacter = false;
-        return;
-    }
-
-    characterSheet.attributes = data.attributes || {};
-    characterSheet.skills = data.skills || {};
-    characterSheet.derived = data.derived || {};
-
-    hasLoadedCharacter = true;
-}
-
-/* ---------------- SAVE ---------------- */
+/* ---------------- SAVE / LOAD ---------------- */
 
 async function saveCharacterSheet() {
     calculateDerivedTraits();
@@ -173,66 +220,51 @@ async function saveCharacterSheet() {
         return;
     }
 
-    alert("Saved");
+    alert("Character saved");
     el("charCreator").style.display = "none";
-    hasLoadedCharacter = true;
 }
 
-/* ---------------- LOGIN ---------------- */
+function renderPlayerSheet() {
+    const box = document.getElementById("sheetContent");
+    if (!box) return;
 
-function enterChat() {
-    currentUser = el("username")?.value || "";
-    currentAvatar = el("avatar")?.value || "";
+    calculateDerivedTraits();
 
-    if (!currentUser) return;
+    let html = `<h3>${currentUser}</h3><br>`;
 
-    if (!currentAvatar) currentAvatar = "assets/default-avatar.png";
-
-    localStorage.setItem("username", currentUser);
-    localStorage.setItem("avatar", currentAvatar);
-
-    el("overlay").style.display = "none";
-}
-
-/* ---------------- DM ---------------- */
-
-function enterDMMode() {
-    const pass = prompt("Enter DM password:");
-
-    if (pass === "Critical20") {
-        isDM = true;
-        localStorage.setItem("isDM", "true");
-
-        alert("DM mode enabled");
-
-        updateDMPanel();
-        loadCharacterList();
-        loadMessages();
-    } else {
-        alert("Incorrect password");
+    html += `<strong>Attributes</strong><br>`;
+    for (const [k, v] of Object.entries(characterSheet.attributes || {})) {
+        html += `${k}: ${v}<br>`;
     }
+
+    html += `<br><strong>Skills</strong><br>`;
+    for (const [k, v] of Object.entries(characterSheet.skills || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    html += `<br><strong>Derived</strong><br>`;
+    for (const [k, v] of Object.entries(characterSheet.derived || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    box.innerHTML = html;
 }
 
-function toggleDMMode() {
-    isDM = false;
-    localStorage.setItem("isDM", "false");
+async function loadCharacterSheet() {
+    const { data } = await client
+        .from("character_sheets")
+        .select("*")
+        .eq("username", currentUser)
+        .maybeSingle();
 
-    hauntAngr = false;
+    if (!data) return;
 
-    updateDMPanel();
-    loadMessages();
+    characterSheet.attributes = data.attributes || {};
+    characterSheet.skills = data.skills || {};
+    characterSheet.derived = data.derived || {};
 }
 
-/* ---------------- DM PANEL ---------------- */
-
-function updateDMPanel() {
-    const panel = el("dmPanel");
-    if (!panel) return;
-
-    panel.style.display = isDM ? "flex" : "none";
-
-    if (isDM) loadCharacterList();
-}
+/* ---------------- DM CHARACTER LIST ---------------- */
 
 async function loadCharacterList() {
     if (!isDM) return;
@@ -254,27 +286,49 @@ async function loadCharacterList() {
     });
 }
 
+/* ---------------- INSPECT ---------------- */
+
 async function inspectCharacter(username) {
-    const box = el("characterInspect");
+    const box = document.getElementById("characterInspect");
     if (!box) return;
 
-    const { data } = await client
+    box.innerHTML = "Loading...";
+
+    const { data, error } = await client
         .from("character_sheets")
         .select("*")
         .eq("username", username)
         .maybeSingle();
 
-    if (!data) {
-        box.innerHTML = "Character not found";
+    if (error || !data) {
+        box.innerHTML = "⚠ Character not found";
         loadCharacterList();
         return;
     }
 
-    box.innerHTML = `
-        <b>${username}</b><br><br>
-        <button onclick="deleteCharacter('${username}')">Delete Character</button>
-    `;
+    let html = `<strong>${username}</strong><br><br>`;
+
+    html += `<u>Attributes</u><br>`;
+    for (const [k, v] of Object.entries(data.attributes || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    html += `<br><u>Skills</u><br>`;
+    for (const [k, v] of Object.entries(data.skills || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    html += `<br><u>Derived</u><br>`;
+    for (const [k, v] of Object.entries(data.derived || {})) {
+        html += `${k}: ${v}<br>`;
+    }
+
+    html += `<br><button onclick="deleteCharacter('${username}')">Delete Character</button>`;
+
+    box.innerHTML = html;
 }
+
+/* ---------------- DELETE CHARACTER ---------------- */
 
 async function deleteCharacter(username) {
     if (!isDM) return;
@@ -293,6 +347,7 @@ async function deleteCharacter(username) {
 async function sendMessage() {
     const input = el("messageInput");
     const text = input?.value.trim();
+
     if (!text) return;
 
     await client.from("messages").insert({
@@ -312,26 +367,22 @@ async function loadMessages() {
         .order("created_at", { ascending: true });
 
     const container = el("messages");
-    if (!container) return;
-
     container.innerHTML = "";
 
     (data || []).forEach(addMessage);
 }
 
 function addMessage(msg) {
-    const container = el("messages");
+    const wrap = document.createElement("div");
+    wrap.className = "message";
 
-    const div = document.createElement("div");
-    div.className = "message";
-
-    div.innerHTML = `
-        <b>${msg.username}</b><br>
-        ${msg.content}<br>
+    wrap.innerHTML = `
+        <div><b>${msg.username}</b></div>
+        <div class="${msg.haunt ? 'haunt-angr' : ''}">${msg.content}</div>
         <small>${new Date(msg.created_at).toLocaleString()}</small>
     `;
 
-    container.appendChild(div);
+    el("messages").appendChild(wrap);
 }
 
 /* ---------------- STARTUP ---------------- */
@@ -343,6 +394,7 @@ window.onload = async () => {
     if (currentUser) el("overlay").style.display = "none";
 
     updateDMPanel();
+
     await loadCharacterSheet();
     await loadMessages();
 };
