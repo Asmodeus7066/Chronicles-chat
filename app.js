@@ -96,9 +96,13 @@ async function sendMessage() {
 
   if (!text) return;
 
+  // always read LIVE values from inputs
+  const username = el("username")?.value?.trim() || "Anonymous";
+  const avatar = el("avatar")?.value?.trim() || "default.png";
+
   const { error } = await client.from("messages").insert({
-    username: currentUser,
-    avatar: currentAvatar,
+    username,
+    avatar,
     content: text,
   });
 
