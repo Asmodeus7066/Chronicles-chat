@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl5Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -7,7 +7,7 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = "";
 let currentAvatar = "";
-let isDM = localStorage.getItem("isDM") === "true";
+let isDM = false;
 let hauntAngr = false;
 
 let selectedNoteUser = "";
@@ -28,8 +28,7 @@ function enterChat() {
 
     if (!currentAvatar) currentAvatar = "assets/default-avatar.png";
 
-    localStorage.setItem("username", currentUser);
-    localStorage.setItem("avatar", currentAvatar);
+    // NO CACHING (fresh login each time)
 
     el("overlay").style.display = "none";
 
@@ -44,7 +43,6 @@ function enterDMMode() {
 
     if (pass === "Critical20") {
         isDM = true;
-        localStorage.setItem("isDM", "true");
 
         alert("DM mode enabled");
 
@@ -57,7 +55,6 @@ function enterDMMode() {
 
 function toggleDMMode() {
     isDM = false;
-    localStorage.setItem("isDM", "false");
     hauntAngr = false;
 
     updateDMPanel();
@@ -87,42 +84,31 @@ async function openNotes(username) {
 
     box.innerHTML = "Loading notes...";
 
-    // STEP 1: try fetch
-    let { data, error } = await client
+    const { data, error } = await client
         .from("user_notes")
         .select("notes")
         .eq("username", username)
         .maybeSingle();
 
-    if (error) {
-        console.error("Fetch error:", error);
-    }
+    if (error) console.error(error);
 
-    // STEP 2: if missing → create row safely
+    let notes = data?.notes ?? "";
+
     if (!data) {
-        const created = await client
-            .from("user_notes")
-            .upsert({
-                username,
-                notes: ""
-            }, { onConflict: "username" })
-            .select()
-            .maybeSingle();
-
-        data = created.data;
+        await client.from("user_notes").upsert({
+            username,
+            notes: ""
+        }, { onConflict: "username" });
     }
-
-    const notes = data?.notes ?? "";
 
     box.innerHTML = `
         <h3>Notes for ${username}</h3>
-
-        <textarea id="dmNotesBox" style="width:100%; height:160px;">${notes}</textarea>
-
+        <textarea id="dmNotesBox" style="width:100%; height:160px;"></textarea>
         <br><br>
-
         <button onclick="saveNotes()">Save Notes</button>
     `;
+
+    el("dmNotesBox").value = notes;
 }
 
 async function saveNotes() {
@@ -146,7 +132,7 @@ async function saveNotes() {
     alert("Notes saved");
 }
 
-/* ---------------- DM USER LIST ---------------- */
+/* ---------------- USER LIST (FIXED) ---------------- */
 
 async function loadCharacterList() {
     if (!isDM) return;
@@ -155,16 +141,21 @@ async function loadCharacterList() {
     if (!list) return;
 
     const { data } = await client
-        .from("character_sheets")
+        .from("messages")
         .select("username");
 
     list.innerHTML = "";
 
-    (data || []).forEach(user => {
-        const btn = document.createElement("button");
-        btn.textContent = user.username;
+    const seen = new Set();
 
-        btn.onclick = () => openNotes(user.username);
+    (data || []).forEach(m => {
+        if (!m.username || seen.has(m.username)) return;
+
+        seen.add(m.username);
+
+        const btn = document.createElement("button");
+        btn.textContent = m.username;
+        btn.onclick = () => openNotes(m.username);
 
         list.appendChild(btn);
     });
@@ -235,11 +226,24 @@ async function wipeAllMessages() {
 /* ---------------- STARTUP ---------------- */
 
 window.onload = async () => {
-    currentUser = localStorage.getItem("username") || "";
-    currentAvatar = localStorage.getItem("avatar") || "";
-
-    if (currentUser) el("overlay").style.display = "none";
+    currentUser = "";
+    currentAvatar = "";
+    isDM = false;
+    hauntAngr = false;
 
     updateDMPanel();
     loadMessages();
+
+    client
+        .channel("messages")
+        .on(
+            "postgres_changes",
+            {
+                event: "*",
+                schema: "public",
+                table: "messages"
+            },
+            () => loadMessages()
+        )
+        .subscribe();
 };
