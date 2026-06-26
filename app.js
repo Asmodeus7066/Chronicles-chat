@@ -90,32 +90,30 @@ function subscribeToMessages() {
 
 /* ---------------- SEND MESSAGE ---------------- */
 
+let cachedUsername = "";
+
 async function sendMessage() {
   const input = el("messageInput");
-  const usernameEl = document.getElementById("username");
-
-  console.log("USERNAME ELEMENT:", usernameEl);
-  console.log("USERNAME VALUE:", usernameEl?.value);
-  console.log("MESSAGE VALUE:", input?.value);
-
   const text = input?.value?.trim();
-  const username = usernameEl?.value?.trim();
-
-  const finalUsername = username || "Anonymous";
-
-  console.log("FINAL USERNAME:", finalUsername);
 
   if (!text) return;
 
-  const { error } = await client.from("messages").insert({
+  const usernameEl = document.getElementById("username");
+  const avatarEl = document.getElementById("avatar");
+
+  if (usernameEl?.value?.trim()) {
+    cachedUsername = usernameEl.value.trim();
+    localStorage.setItem("username", cachedUsername);
+  }
+
+  const finalUsername = cachedUsername || "Anonymous";
+  const avatar = avatarEl?.value?.trim() || "default.png";
+
+  await client.from("messages").insert({
     username: finalUsername,
-    avatar: document.getElementById("avatar")?.value || "default.png",
+    avatar,
     content: text,
   });
-
-  if (error) {
-    console.error(error);
-  }
 
   input.value = "";
 }
