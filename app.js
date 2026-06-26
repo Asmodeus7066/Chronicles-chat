@@ -118,6 +118,16 @@ async function initChat() {
   subscribeToMessages();
 }
 
+function enterGMMode() {
+  const pass = prompt("Enter GM password:");
+
+  if (pass === "Critical20") {
+    alert("GM mode enabled");
+  } else {
+    alert("Incorrect password");
+  }
+}
+
 /* ---------------- STARTUP ---------------- */
 
 window.onload = () => {
