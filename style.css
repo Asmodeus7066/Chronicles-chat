@@ -66,3 +66,20 @@ body {
   border-radius: 8px;
   word-wrap: break-word;
 }
+
+#dmPanel {
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: 250px;
+  height: 100vh;
+  background: #111;
+  color: white;
+  padding: 10px;
+  border-left: 1px solid #333;
+  z-index: 999;
+}
+
+body.dm-active #chat {
+  margin-right: 250px;
+}
