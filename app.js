@@ -7,32 +7,10 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = "";
 let currentAvatar = "";
-let cachedUsername = "";
 
 /* ---------------- HELPERS ---------------- */
 
 const el = (id) => document.getElementById(id);
-
-/* ---------------- LOGIN ---------------- */
-
-function enterChat() {
-  currentUser = el("username")?.value?.trim();
-  currentAvatar = el("avatar")?.value?.trim() || "default.png";
-
-  if (!currentUser) {
-    alert("Enter username");
-    return;
-  }
-
-  cachedUsername = currentUser;
-
-  localStorage.setItem("username", currentUser);
-  localStorage.setItem("avatar", currentAvatar);
-
-  el("overlay").style.display = "none";
-
-  initChat();
-}
 
 /* ---------------- MESSAGE RENDER ---------------- */
 
@@ -67,8 +45,9 @@ async function loadMessages() {
   }
 
   const container = el("messages");
-  container.innerHTML = "";
+  if (!container) return;
 
+  container.innerHTML = "";
   (data || []).forEach(appendMessage);
 }
 
@@ -105,6 +84,9 @@ async function sendMessage() {
     return;
   }
 
+  currentUser = username;
+  currentAvatar = avatar;
+
   localStorage.setItem("username", username);
   localStorage.setItem("avatar", avatar);
 
@@ -122,6 +104,7 @@ async function sendMessage() {
 
   input.value = "";
 }
+
 /* ---------------- INIT ---------------- */
 
 async function initChat() {
@@ -153,10 +136,5 @@ window.onload = () => {
   if (userInput) userInput.value = currentUser;
   if (avatarInput) avatarInput.value = currentAvatar;
 
-  cachedUsername = currentUser;
-
-  if (currentUser) {
-    el("overlay").style.display = "none";
-    initChat();
-  }
+  initChat();
 };
