@@ -30,57 +30,46 @@ function enterChat() {
 
 async function sendMessage() {
   const input = el("messageInput");
-  const text = input.value.trim();
+  const text = input?.value?.trim();
+
+  console.log("▶ sendMessage fired");
+  console.log("currentUser:", currentUser);
+  console.log("currentAvatar:", currentAvatar);
+  console.log("text:", text);
 
   if (!text) return;
 
-  const { error } = await client
-    .from("messages")
-    .insert([{
-      username: currentUser,
-      avatar: currentAvatar,
-      content: text
-    }]);
+  const payload = {
+    username: currentUser,
+    avatar: currentAvatar,
+    content: text
+  };
 
-  if (error) {
-    console.error(error);
-    alert("Failed to send message");
-    return;
+  console.log("📦 payload:", payload);
+
+  try {
+    const { data, error, status } = await client
+      .from("messages")
+      .insert([payload])
+      .select();
+
+    console.log("📡 status:", status);
+    console.log("📡 data:", data);
+    console.log("📡 error:", error);
+
+    if (error) {
+      alert("Insert error: " + JSON.stringify(error));
+      return;
+    }
+
+    input.value = "";
+    loadMessages();
+
+  } catch (err) {
+    console.error("💥 HARD FAIL:", err);
+    alert("Hard failure — check console");
   }
-
-  input.value = "";
-  loadMessages();
 }
-
-/* ---------------- LOAD MESSAGES ---------------- */
-
-async function loadMessages() {
-  const { data, error } = await client
-    .from("messages")
-    .select("*")
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
-  const box = el("messages");
-  box.innerHTML = "";
-
-  (data || []).forEach(msg => {
-    const div = document.createElement("div");
-    div.className = "message";
-
-    div.innerHTML = `
-      <b>${msg.username}</b><br>
-      ${msg.content}
-    `;
-
-    box.appendChild(div);
-  });
-}
-
 /* ---------------- START ---------------- */
 
 window.onload = () => {
