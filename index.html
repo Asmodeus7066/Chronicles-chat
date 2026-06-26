@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Chronicle</title>
-
+  <title>Chronicle Rebuild</title>
   <link rel="stylesheet" href="style.css">
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
@@ -13,56 +11,27 @@
 <!-- LOGIN -->
 <div id="overlay">
   <div id="loginBox">
-
-    <img src="assets/logo.png" class="logo">
+    <h2>Login</h2>
 
     <input id="username" placeholder="Username">
-    <input id="avatar" placeholder="Avatar Image URL">
+    <input id="avatar" placeholder="Avatar URL">
 
-    <button onclick="enterChat()">
-      Enter Chronicle
-    </button>
-
+    <button onclick="enterChat()">Enter</button>
   </div>
 </div>
 
 <!-- CHAT -->
-<div id="chatContainer">
-
-  <div id="header">
-    CHRONICLE ARCHIVE
-    <button onclick="enterDMMode()">DM Login</button>
-  </div>
+<div id="chat">
 
   <div id="messages"></div>
 
   <div id="inputArea">
-    <input id="messageInput" placeholder="Write...">
-
-    <button onclick="sendMessage()">
-      Send
-    </button>
+    <input id="messageInput" placeholder="Message...">
+    <button onclick="sendMessage()">Send</button>
   </div>
 
 </div>
 
-<!-- DM PANEL -->
-<div id="dmPanel">
-    <div class="dm-title">DM PANEL</div>
-
-    <button onclick="setUsernameForMessage()">Change Username</button>
-
-    <button onclick="toggleHauntAngr()">Haunt-ANGR</button>
-
-    <button onclick="wipeAllMessages()">Wipe All Messages</button>
-
-    <button onclick="toggleDMMode()">Exit DM Mode</button>
-
-    <hr>
-  
-</div>
-
 <script src="app.js"></script>
-
 </body>
 </html>
