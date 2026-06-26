@@ -1,5 +1,5 @@
 const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl5Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -118,7 +118,10 @@ async function initChat() {
   subscribeToMessages();
 }
 
-function enterGMMode() {
+/* ---------------- GM MODE (FIXED) ---------------- */
+
+/* IMPORTANT FIX: must be attached to window for inline HTML onclick */
+window.enterGMMode = function () {
   const pass = prompt("Enter GM password:");
 
   if (pass === "Critical20") {
@@ -126,7 +129,7 @@ function enterGMMode() {
   } else {
     alert("Incorrect password");
   }
-}
+};
 
 /* ---------------- STARTUP ---------------- */
 
