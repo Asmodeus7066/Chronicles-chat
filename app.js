@@ -96,12 +96,18 @@ async function sendMessage() {
 
   if (!text) return;
 
-  // always read LIVE values from inputs
-  const username = el("username")?.value?.trim() || "Anonymous";
-  const avatar = el("avatar")?.value?.trim() || "default.png";
+  const usernameEl = document.getElementById("username");
+  const avatarEl = document.getElementById("avatar");
+
+  const username = usernameEl ? usernameEl.value.trim() : "";
+  const avatar = avatarEl ? avatarEl.value.trim() : "default.png";
+
+  console.log("USERNAME DEBUG:", usernameEl, username);
+
+  const finalUsername = username || "Anonymous";
 
   const { error } = await client.from("messages").insert({
-    username,
+    username: finalUsername,
     avatar,
     content: text,
   });
@@ -114,7 +120,6 @@ async function sendMessage() {
 
   input.value = "";
 }
-
 /* ---------------- INIT ---------------- */
 
 async function initChat() {
