@@ -97,22 +97,19 @@ async function sendMessage() {
 
   if (!text) return;
 
-  const usernameEl = document.getElementById("username");
-  const avatarEl = document.getElementById("avatar");
+  const username = el("username")?.value?.trim();
+  const avatar = el("avatar")?.value?.trim() || "default.png";
 
-  // ALWAYS prefer live input if it exists AND has value
-  const liveUsername = usernameEl?.value?.trim();
-
-  if (liveUsername) {
-    cachedUsername = liveUsername;
-    localStorage.setItem("username", cachedUsername);
+  if (!username) {
+    alert("Set a username first");
+    return;
   }
 
-  const finalUsername = cachedUsername || "Anonymous";
-  const avatar = avatarEl?.value?.trim() || "default.png";
+  localStorage.setItem("username", username);
+  localStorage.setItem("avatar", avatar);
 
   const { error } = await client.from("messages").insert({
-    username: finalUsername,
+    username,
     avatar,
     content: text,
   });
@@ -125,7 +122,6 @@ async function sendMessage() {
 
   input.value = "";
 }
-
 /* ---------------- INIT ---------------- */
 
 async function initChat() {
