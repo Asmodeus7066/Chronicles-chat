@@ -1,8 +1,10 @@
 const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl5Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
+
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ---------------- STATE ---------------- */
+
 let currentUser = "";
 let currentAvatar = "";
 
@@ -13,10 +15,13 @@ const el = (id) => document.getElementById(id);
 /* ---------------- LOGIN ---------------- */
 
 function enterChat() {
-  currentUser = el("username").value.trim();
-  currentAvatar = el("avatar").value.trim() || "default.png";
+  currentUser = el("username")?.value?.trim();
+  currentAvatar = el("avatar")?.value?.trim() || "default.png";
 
-  if (!currentUser) return alert("Enter username");
+  if (!currentUser) {
+    alert("Enter username");
+    return;
+  }
 
   localStorage.setItem("username", currentUser);
   localStorage.setItem("avatar", currentAvatar);
@@ -24,6 +29,38 @@ function enterChat() {
   el("overlay").style.display = "none";
 
   loadMessages();
+}
+
+/* ---------------- LOAD MESSAGES ---------------- */
+
+async function loadMessages() {
+  const { data, error } = await client
+    .from("messages")
+    .select("*")
+    .order("created_at", { ascending: true });
+
+  const container = el("messages");
+  if (!container) return;
+
+  if (error) {
+    console.error("Load error:", error);
+    return;
+  }
+
+  container.innerHTML = "";
+
+  (data || []).forEach(msg => {
+    const div = document.createElement("div");
+    div.className = "message";
+
+    div.innerHTML = `
+      <b>${msg.username}</b><br>
+      ${msg.content}<br>
+      <small>${new Date(msg.created_at).toLocaleString()}</small>
+    `;
+
+    container.appendChild(div);
+  });
 }
 
 /* ---------------- SEND MESSAGE ---------------- */
@@ -47,30 +84,24 @@ async function sendMessage() {
 
   console.log("📦 payload:", payload);
 
-  try {
-    const { data, error, status } = await client
-      .from("messages")
-      .insert([payload])
-      .select();
+  const { data, error } = await client
+    .from("messages")
+    .insert(payload)
+    .select();
 
-    console.log("📡 status:", status);
-    console.log("📡 data:", data);
-    console.log("📡 error:", error);
+  console.log("📡 data:", data);
+  console.log("📡 error:", error);
 
-    if (error) {
-      alert("Insert error: " + JSON.stringify(error));
-      return;
-    }
-
-    input.value = "";
-    loadMessages();
-
-  } catch (err) {
-    console.error("💥 HARD FAIL:", err);
-    alert("Hard failure — check console");
+  if (error) {
+    alert("Insert error: " + JSON.stringify(error));
+    return;
   }
+
+  input.value = "";
+  await loadMessages();
 }
-/* ---------------- START ---------------- */
+
+/* ---------------- STARTUP ---------------- */
 
 window.onload = () => {
   currentUser = localStorage.getItem("username") || "";
