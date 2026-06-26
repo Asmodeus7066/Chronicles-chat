@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html>
 <head>
   <title>Chronicle Rebuild</title>
@@ -7,39 +7,28 @@
 </head>
 
 <body>
-<!-- LOGIN -->
-<div id="overlay">
-  <div id="loginBox">
-    <h2>Login</h2>
-
-    <input id="username" placeholder="Username">
-    <input id="avatar" placeholder="Avatar URL">
-
-    <button onclick="enterChat()">Enter</button>
-  </div>
-</div>
 
 <!-- CHAT -->
 <div id="chat">
 
   <div id="messages"></div>
 
-<div id="inputArea">
+  <div id="inputArea">
 
-  <input id="username" placeholder="Username">
+    <!-- SINGLE SOURCE OF IDENTITY -->
+    <input id="username" placeholder="Username">
+    <input id="avatar" placeholder="Avatar URL">
 
-  <input id="avatar" placeholder="Avatar URL">
+    <input id="messageInput" placeholder="Write...">
 
-  <input id="messageInput" placeholder="Write...">
+    <button onclick="sendMessage()">Send</button>
+    <button onclick="enterGMMode()">GM Login</button>
 
-  <button onclick="sendMessage()">Send</button>
-  <button onclick="enterGMMode()">GM Login</button>
-
-</div>
   </div>
 
 </div>
 
 <script src="app.js"></script>
+
 </body>
 </html>
