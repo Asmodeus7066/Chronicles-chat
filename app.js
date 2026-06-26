@@ -1,12 +1,12 @@
 const SUPABASE_URL = "https://kxnyucaqvhwuahretwyk.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt4bnl1Y2Fxdmh3dWFocmV0d3lrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNDM5NzYsImV4cCI6MjA5NjYxOTk3Nn0.abiVGk93QxW9S3Xlx15U0uYwZJUQ3k3Nyn5xhqMeZfE";
-
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ---------------- STATE ---------------- */
 
 let currentUser = "";
 let currentAvatar = "";
+let isDM = false;
 
 /* ---------------- HELPERS ---------------- */
 
@@ -112,16 +112,46 @@ async function initChat() {
   subscribeToMessages();
 }
 
-/* ---------------- GM MODE ---------------- */
+/* ---------------- DM PANEL ---------------- */
 
 window.enterGMMode = function () {
   const pass = prompt("Enter GM password:");
 
   if (pass === "Critical20") {
-    alert("GM mode enabled");
+    isDM = true;
+
+    const panel = el("dmPanel");
+    if (panel) panel.style.display = "block";
+
+    document.body.classList.add("dm-active");
+
+    alert("DM mode enabled");
   } else {
     alert("Incorrect password");
   }
+};
+
+/* ---------------- DELETE ALL MESSAGES ---------------- */
+
+window.deleteAllMessages = async function () {
+  if (!isDM) return;
+
+  const confirmDelete = confirm("Delete ALL messages?");
+  if (!confirmDelete) return;
+
+  const { error } = await client
+    .from("messages")
+    .delete()
+    .neq("id", 0);
+
+  if (error) {
+    console.error(error);
+    alert("Failed to delete messages");
+    return;
+  }
+
+  const container = el("messages");
+  if (container) container.innerHTML = "";
 };
 
 /* ---------------- STARTUP ---------------- */
