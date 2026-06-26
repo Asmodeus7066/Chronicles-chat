@@ -7,6 +7,7 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = "";
 let currentAvatar = "";
+let cachedUsername = "";
 
 /* ---------------- HELPERS ---------------- */
 
@@ -22,6 +23,8 @@ function enterChat() {
     alert("Enter username");
     return;
   }
+
+  cachedUsername = currentUser;
 
   localStorage.setItem("username", currentUser);
   localStorage.setItem("avatar", currentAvatar);
@@ -81,16 +84,12 @@ function subscribeToMessages() {
         schema: "public",
         table: "messages",
       },
-      (payload) => {
-        appendMessage(payload.new);
-      }
+      (payload) => appendMessage(payload.new)
     )
     .subscribe();
 }
 
 /* ---------------- SEND MESSAGE ---------------- */
-
-let cachedUsername = "";
 
 async function sendMessage() {
   const input = el("messageInput");
@@ -101,22 +100,32 @@ async function sendMessage() {
   const usernameEl = document.getElementById("username");
   const avatarEl = document.getElementById("avatar");
 
-  if (usernameEl?.value?.trim()) {
-    cachedUsername = usernameEl.value.trim();
+  // ALWAYS prefer live input if it exists AND has value
+  const liveUsername = usernameEl?.value?.trim();
+
+  if (liveUsername) {
+    cachedUsername = liveUsername;
     localStorage.setItem("username", cachedUsername);
   }
 
   const finalUsername = cachedUsername || "Anonymous";
   const avatar = avatarEl?.value?.trim() || "default.png";
 
-  await client.from("messages").insert({
+  const { error } = await client.from("messages").insert({
     username: finalUsername,
     avatar,
     content: text,
   });
 
+  if (error) {
+    console.error("Send error:", error);
+    alert("Message failed");
+    return;
+  }
+
   input.value = "";
 }
+
 /* ---------------- INIT ---------------- */
 
 async function initChat() {
@@ -124,9 +133,8 @@ async function initChat() {
   subscribeToMessages();
 }
 
-/* ---------------- GM MODE (FIXED) ---------------- */
+/* ---------------- GM MODE ---------------- */
 
-/* IMPORTANT FIX: must be attached to window for inline HTML onclick */
 window.enterGMMode = function () {
   const pass = prompt("Enter GM password:");
 
@@ -142,6 +150,14 @@ window.enterGMMode = function () {
 window.onload = () => {
   currentUser = localStorage.getItem("username") || "";
   currentAvatar = localStorage.getItem("avatar") || "default.png";
+
+  const userInput = el("username");
+  const avatarInput = el("avatar");
+
+  if (userInput) userInput.value = currentUser;
+  if (avatarInput) avatarInput.value = currentAvatar;
+
+  cachedUsername = currentUser;
 
   if (currentUser) {
     el("overlay").style.display = "none";
