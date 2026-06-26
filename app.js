@@ -5,8 +5,8 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ---------------- STATE ---------------- */
 
-let currentUser = localStorage.getItem("username") || "";
-let currentAvatar = localStorage.getItem("avatar") || "";
+let currentUser = "";
+let currentAvatar = "";
 let isDM = localStorage.getItem("isDM") === "true";
 let hauntAngr = false;
 
@@ -18,28 +18,21 @@ function el(id) {
     return document.getElementById(id);
 }
 
-/* ---------------- STARTUP ---------------- */
-
-window.onload = async () => {
-    if (currentUser) {
-        el("overlay").style.display = "none";
+function logError(prefix, error) {
+    if (error) {
+        console.error(prefix, error);
     }
-
-    updateDMPanel();
-    await loadMessages();
-};
+}
 
 /* ---------------- LOGIN ---------------- */
 
 function enterChat() {
-    currentUser = el("username")?.value?.trim();
-    currentAvatar = el("avatar")?.value?.trim();
+    currentUser = el("username")?.value || "";
+    currentAvatar = el("avatar")?.value || "";
 
     if (!currentUser) return;
 
-    if (!currentAvatar) {
-        currentAvatar = "assets/default-avatar.png";
-    }
+    if (!currentAvatar) currentAvatar = "assets/default-avatar.png";
 
     localStorage.setItem("username", currentUser);
     localStorage.setItem("avatar", currentAvatar);
@@ -58,12 +51,13 @@ function enterDMMode() {
     if (pass === "Critical20") {
         isDM = true;
         localStorage.setItem("isDM", "true");
-        alert("DM enabled");
+
+        alert("DM mode enabled");
 
         updateDMPanel();
         loadMessages();
     } else {
-        alert("Wrong password");
+        alert("Incorrect password");
     }
 }
 
@@ -84,7 +78,7 @@ function updateDMPanel() {
 
     panel.style.display = isDM ? "flex" : "none";
 
-    if (isDM) loadUserList();
+    if (isDM) loadCharacterList();
 }
 
 /* ---------------- NOTES SYSTEM ---------------- */
@@ -95,23 +89,35 @@ async function openNotes(username) {
     selectedNoteUser = username;
 
     const box = el("characterInspect");
+    if (!box) return;
+
     box.innerHTML = "Loading notes...";
 
-    const { data, error } = await client
+    let { data, error } = await client
         .from("user_notes")
-        .select("*")
+        .select("notes")
         .eq("username", username)
         .maybeSingle();
 
-    if (error) console.error(error);
+    logError("Fetch notes error:", error);
+
+    if (!data) {
+        const res = await client
+            .from("user_notes")
+            .upsert({ username, notes: "" }, { onConflict: "username" })
+            .select()
+            .maybeSingle();
+
+        data = res.data;
+    }
 
     const notes = data?.notes || "";
 
     box.innerHTML = `
-        <h3>Notes: ${username}</h3>
-        <textarea id="dmNotesBox" style="width:100%;height:150px">${notes}</textarea>
+        <h3>Notes for ${username}</h3>
+        <textarea id="dmNotesBox" style="width:100%; height:160px;">${notes}</textarea>
         <br><br>
-        <button onclick="saveNotes()">Save</button>
+        <button onclick="saveNotes()">Save Notes</button>
     `;
 }
 
@@ -120,17 +126,17 @@ async function saveNotes() {
 
     const text = el("dmNotesBox")?.value || "";
 
-    const { data, error } = await client
+    const { error } = await client
         .from("user_notes")
         .upsert({
             username: selectedNoteUser,
             notes: text
-        }, { onConflict: "username" })
-        .select();
+        }, { onConflict: "username" });
+
+    logError("Save notes error:", error);
 
     if (error) {
-        console.error("SAVE NOTES ERROR:", error);
-        alert("Failed saving notes");
+        alert("Failed to save notes");
         return;
     }
 
@@ -139,7 +145,9 @@ async function saveNotes() {
 
 /* ---------------- USER LIST ---------------- */
 
-async function loadUserList() {
+async function loadCharacterList() {
+    if (!isDM) return;
+
     const list = el("characterList");
     if (!list) return;
 
@@ -147,24 +155,21 @@ async function loadUserList() {
         .from("messages")
         .select("username");
 
-    if (error) {
-        console.error("USER LIST ERROR:", error);
-        return;
-    }
-
-    const uniqueUsers = [...new Set((data || []).map(x => x.username))];
+    logError("User list error:", error);
 
     list.innerHTML = "";
 
-    uniqueUsers.forEach(u => {
+    const uniqueUsers = [...new Set((data || []).map(m => m.username))];
+
+    uniqueUsers.forEach(username => {
         const btn = document.createElement("button");
-        btn.textContent = u;
-        btn.onclick = () => openNotes(u);
+        btn.textContent = username;
+        btn.onclick = () => openNotes(username);
         list.appendChild(btn);
     });
 }
 
-/* ---------------- MESSAGES ---------------- */
+/* ---------------- CHAT (THIS WAS YOUR REAL BUG AREA) ---------------- */
 
 async function sendMessage() {
     const input = el("messageInput");
@@ -176,20 +181,26 @@ async function sendMessage() {
         username: currentUser,
         avatar: currentAvatar,
         content: text,
-        haunt: isDM && hauntAngr,
-        created_at: new Date().toISOString()
+        haunt: isDM && hauntAngr
     };
 
-    const { error } = await client.from("messages").insert(payload);
+    console.log("Sending message:", payload);
+
+    const { data, error } = await client
+        .from("messages")
+        .insert([payload])
+        .select();
+
+    logError("Send message error:", error);
 
     if (error) {
-        console.error("SEND ERROR:", error);
-        alert("Message failed (check console)");
+        alert("Message failed to send (check console)");
         return;
     }
 
     input.value = "";
-    await loadMessages();
+
+    loadMessages();
 }
 
 async function loadMessages() {
@@ -198,10 +209,7 @@ async function loadMessages() {
         .select("*")
         .order("created_at", { ascending: true });
 
-    if (error) {
-        console.error("LOAD ERROR:", error);
-        return;
-    }
+    logError("Load messages error:", error);
 
     const container = el("messages");
     if (!container) return;
@@ -209,16 +217,16 @@ async function loadMessages() {
     container.innerHTML = "";
 
     (data || []).forEach(msg => {
-        const div = document.createElement("div");
-        div.className = "message";
+        const wrap = document.createElement("div");
+        wrap.className = "message";
 
-        div.innerHTML = `
-            <b>${msg.username}</b><br>
+        wrap.innerHTML = `
+            <div><b>${msg.username}</b></div>
             <div class="${msg.haunt ? "haunt-angr" : ""}">${msg.content}</div>
             <small>${new Date(msg.created_at).toLocaleString()}</small>
         `;
 
-        container.appendChild(div);
+        container.appendChild(wrap);
     });
 }
 
@@ -226,8 +234,9 @@ async function loadMessages() {
 
 function setUsernameForMessage() {
     if (!isDM) return;
-    const n = prompt("Username:");
-    if (n) currentUser = n;
+
+    const n = prompt("Set username:");
+    if (n?.trim()) currentUser = n.trim();
 }
 
 function toggleHauntAngr() {
@@ -243,7 +252,22 @@ async function wipeAllMessages() {
         .delete()
         .neq("id", 0);
 
-    if (error) console.error(error);
+    logError("Wipe error:", error);
 
     el("messages").innerHTML = "";
 }
+
+/* ---------------- STARTUP ---------------- */
+
+window.onload = async () => {
+    currentUser = localStorage.getItem("username") || "";
+    currentAvatar = localStorage.getItem("avatar") || "";
+
+    if (currentUser) {
+        const overlay = el("overlay");
+        if (overlay) overlay.style.display = "none";
+    }
+
+    updateDMPanel();
+    await loadMessages();
+};
