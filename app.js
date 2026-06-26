@@ -28,10 +28,29 @@ function enterChat() {
 
   el("overlay").style.display = "none";
 
-  loadMessages();
+  initChat();
 }
 
-/* ---------------- LOAD MESSAGES ---------------- */
+/* ---------------- MESSAGE RENDER ---------------- */
+
+function appendMessage(msg) {
+  const container = el("messages");
+  if (!container) return;
+
+  const div = document.createElement("div");
+  div.className = "message";
+
+  div.innerHTML = `
+    <b>${msg.username}</b><br>
+    ${msg.content}<br>
+    <small>${new Date(msg.created_at).toLocaleString()}</small>
+  `;
+
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+/* ---------------- LOAD HISTORY ---------------- */
 
 async function loadMessages() {
   const { data, error } = await client
@@ -39,28 +58,34 @@ async function loadMessages() {
     .select("*")
     .order("created_at", { ascending: true });
 
-  const container = el("messages");
-  if (!container) return;
-
   if (error) {
     console.error("Load error:", error);
     return;
   }
 
+  const container = el("messages");
   container.innerHTML = "";
 
-  (data || []).forEach(msg => {
-    const div = document.createElement("div");
-    div.className = "message";
+  (data || []).forEach(appendMessage);
+}
 
-    div.innerHTML = `
-      <b>${msg.username}</b><br>
-      ${msg.content}<br>
-      <small>${new Date(msg.created_at).toLocaleString()}</small>
-    `;
+/* ---------------- REALTIME ---------------- */
 
-    container.appendChild(div);
-  });
+function subscribeToMessages() {
+  client
+    .channel("messages-channel")
+    .on(
+      "postgres_changes",
+      {
+        event: "INSERT",
+        schema: "public",
+        table: "messages",
+      },
+      (payload) => {
+        appendMessage(payload.new);
+      }
+    )
+    .subscribe();
 }
 
 /* ---------------- SEND MESSAGE ---------------- */
@@ -69,46 +94,38 @@ async function sendMessage() {
   const input = el("messageInput");
   const text = input?.value?.trim();
 
-  console.log("▶ sendMessage fired");
-  console.log("currentUser:", currentUser);
-  console.log("currentAvatar:", currentAvatar);
-  console.log("text:", text);
-
   if (!text) return;
 
-  const payload = {
+  const { error } = await client.from("messages").insert({
     username: currentUser,
     avatar: currentAvatar,
-    content: text
-  };
-
-  console.log("📦 payload:", payload);
-
-  const { data, error } = await client
-    .from("messages")
-    .insert(payload)
-    .select();
-
-  console.log("📡 data:", data);
-  console.log("📡 error:", error);
+    content: text,
+  });
 
   if (error) {
-    alert("Insert error: " + JSON.stringify(error));
+    console.error("Send error:", error);
+    alert("Message failed");
     return;
   }
 
   input.value = "";
+}
+
+/* ---------------- INIT ---------------- */
+
+async function initChat() {
   await loadMessages();
+  subscribeToMessages();
 }
 
 /* ---------------- STARTUP ---------------- */
 
 window.onload = () => {
   currentUser = localStorage.getItem("username") || "";
-  currentAvatar = localStorage.getItem("avatar") || "";
+  currentAvatar = localStorage.getItem("avatar") || "default.png";
 
   if (currentUser) {
     el("overlay").style.display = "none";
-    loadMessages();
+    initChat();
   }
 };
