@@ -87,27 +87,32 @@ async function openNotes(username) {
 
     box.innerHTML = "Loading notes...";
 
+    // STEP 1: try fetch
     let { data, error } = await client
         .from("user_notes")
         .select("notes")
         .eq("username", username)
         .maybeSingle();
 
-    // if no row exists → create it
+    if (error) {
+        console.error("Fetch error:", error);
+    }
+
+    // STEP 2: if missing → create row safely
     if (!data) {
-        const insert = await client
+        const created = await client
             .from("user_notes")
-            .insert({
+            .upsert({
                 username,
                 notes: ""
-            })
+            }, { onConflict: "username" })
             .select()
             .maybeSingle();
 
-        data = insert.data;
+        data = created.data;
     }
 
-    const notes = data?.notes || "";
+    const notes = data?.notes ?? "";
 
     box.innerHTML = `
         <h3>Notes for ${username}</h3>
