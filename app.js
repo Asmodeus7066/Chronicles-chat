@@ -92,30 +92,29 @@ function subscribeToMessages() {
 
 async function sendMessage() {
   const input = el("messageInput");
-  const text = input?.value?.trim();
-
-  if (!text) return;
-
   const usernameEl = document.getElementById("username");
-  const avatarEl = document.getElementById("avatar");
 
-  const username = usernameEl ? usernameEl.value.trim() : "";
-  const avatar = avatarEl ? avatarEl.value.trim() : "default.png";
+  console.log("USERNAME ELEMENT:", usernameEl);
+  console.log("USERNAME VALUE:", usernameEl?.value);
+  console.log("MESSAGE VALUE:", input?.value);
 
-  console.log("USERNAME DEBUG:", usernameEl, username);
+  const text = input?.value?.trim();
+  const username = usernameEl?.value?.trim();
 
   const finalUsername = username || "Anonymous";
 
+  console.log("FINAL USERNAME:", finalUsername);
+
+  if (!text) return;
+
   const { error } = await client.from("messages").insert({
     username: finalUsername,
-    avatar,
+    avatar: document.getElementById("avatar")?.value || "default.png",
     content: text,
   });
 
   if (error) {
-    console.error("Send error:", error);
-    alert("Message failed");
-    return;
+    console.error(error);
   }
 
   input.value = "";
