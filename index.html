@@ -1,40 +1,89 @@
 <<!DOCTYPE html>
 <html>
 <head>
-  <title>Chronicle Rebuild</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>Chronicle Rebuild</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
 
+<!-- PLAYER NOTES PANEL -->
+
+<div id="notesPanel">
+
+    <h3>Character Notes</h3>
+
+    <textarea
+        id="notesBox"
+        placeholder="Write your notes here..."
+    ></textarea>
+
+    <button onclick="saveNotes()">
+        Save Notes
+    </button>
+
+</div>
+
 <!-- CHAT -->
+
 <div id="chat">
 
-  <div id="messages"></div>
+    <div id="messages"></div>
 
-  <div id="inputArea">
+    <div id="inputArea">
 
-    <!-- SINGLE SOURCE OF IDENTITY -->
-    <input id="username" placeholder="Username">
-    <input id="avatar" placeholder="Avatar URL">
+        <input id="username" placeholder="Username">
 
-    <input id="messageInput" placeholder="Write...">
+        <input id="avatar" placeholder="Avatar URL">
 
-    <button onclick="sendMessage()">Send</button>
-    <button onclick="enterGMMode()">GM Login</button>
-    
-<div id="dmPanel" style="display:none;">
-  <h3>DM Panel</h3>
+        <input id="messageInput" placeholder="Write...">
 
-  <button onclick="deleteAllMessages()">
-    Delete Messages
-  </button>
-  <button onclick="loadUserList()">Load Users</button>
+        <button onclick="sendMessage()">Send</button>
 
-<div id="userList"></div>
+        <button onclick="enterGMMode()">GM Login</button>
+
+    </div>
+
 </div>
-  </div>
+
+<!-- DM PANEL -->
+
+<div id="dmPanel" style="display:none;">
+
+    <h3>DM Panel</h3>
+
+    <button onclick="deleteAllMessages()">
+        Delete Messages
+    </button>
+
+    <button onclick="loadUserList()">
+        Load Users
+    </button>
+
+    <button onclick="showNotesList()">
+        View User Notes
+    </button>
+
+    <div id="userList"></div>
+
+    <div id="dmNotesView" style="display:none;">
+
+        <button onclick="closeNotesView()">
+            ← Back
+        </button>
+
+        <h3 id="dmNotesTitle"></h3>
+
+        <textarea id="dmNotesBox"></textarea>
+
+        <button onclick="saveDMNotes()">
+            Save Notes
+        </button>
+
+    </div>
 
 </div>
 
