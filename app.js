@@ -9,9 +9,8 @@ let currentUser = "";
 let currentAvatar = "";
 let isDM = false;
 
-// NOTES STATE
+/* NOTES STATE */
 let currentNotesUser = "";
-let isViewingDMNotes = false;
 
 /* ---------------- HELPERS ---------------- */
 
@@ -36,7 +35,7 @@ function appendMessage(msg) {
   container.scrollTop = container.scrollHeight;
 }
 
-/* ---------------- LOAD HISTORY ---------------- */
+/* ---------------- LOAD MESSAGES ---------------- */
 
 async function loadMessages() {
   const { data, error } = await client
@@ -63,11 +62,7 @@ function subscribeToMessages() {
     .channel("messages-channel")
     .on(
       "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "messages",
-      },
+      { event: "INSERT", schema: "public", table: "messages" },
       (payload) => appendMessage(payload.new)
     )
     .subscribe();
@@ -78,7 +73,6 @@ function subscribeToMessages() {
 async function sendMessage() {
   const input = el("messageInput");
   const text = input?.value?.trim();
-
   if (!text) return;
 
   const username = el("username")?.value?.trim();
@@ -102,7 +96,7 @@ async function sendMessage() {
   });
 
   if (error) {
-    console.error("Send error:", error);
+    console.error(error);
     alert("Message failed");
     return;
   }
@@ -115,6 +109,9 @@ async function sendMessage() {
 async function initChat() {
   await loadMessages();
   subscribeToMessages();
+
+  const username = el("username")?.value?.trim();
+  if (username) loadNotes(username);
 }
 
 /* ---------------- GM MODE ---------------- */
@@ -131,12 +128,10 @@ window.enterGMMode = function () {
     document.body.classList.add("dm-active");
 
     alert("DM mode enabled");
-  } else {
-    alert("Incorrect password");
   }
 };
 
-/* ---------------- DELETE ALL MESSAGES ---------------- */
+/* ---------------- DELETE ALL ---------------- */
 
 window.deleteAllMessages = async function () {
   if (!isDM) return;
@@ -150,16 +145,13 @@ window.deleteAllMessages = async function () {
 
   if (error) {
     console.error(error);
-    alert("Failed to delete messages");
     return;
   }
 
   loadMessages();
-  const list = el("userList");
-  if (list) list.innerHTML = "";
 };
 
-/* ---------------- LOAD USER LIST ---------------- */
+/* ---------------- USER LIST ---------------- */
 
 window.loadUserList = async function () {
   if (!isDM) return;
@@ -168,22 +160,19 @@ window.loadUserList = async function () {
     .from("messages")
     .select("username");
 
-  if (error) {
-    console.error(error);
-    return;
-  }
+  if (error) return console.error(error);
 
-  const usernames = [...new Set((data || []).map(r => r.username))].sort();
+  const users = [...new Set((data || []).map(m => m.username))];
 
   const list = el("userList");
   if (!list) return;
 
   list.innerHTML = "";
 
-  usernames.forEach(username => {
+  users.forEach(u => {
     const btn = document.createElement("button");
-    btn.textContent = username;
-    btn.onclick = () => deleteUser(username);
+    btn.textContent = u;
+    btn.onclick = () => openUserNotes(u);
     list.appendChild(btn);
   });
 };
@@ -213,7 +202,7 @@ window.deleteUser = async function (username) {
 
 async function loadNotes(username) {
   const box = el("notesBox");
-  if (!box) return;
+  if (!box || !username) return;
 
   currentNotesUser = username;
 
@@ -224,11 +213,11 @@ async function loadNotes(username) {
     .maybeSingle();
 
   if (error) {
-    console.error(error);
+    console.error("Notes load error:", error);
     return;
   }
 
-  // if no row exists, create it
+  // create if missing
   if (!data) {
     const created = await client
       .from("user_notes")
@@ -246,48 +235,41 @@ async function loadNotes(username) {
   box.value = data.notes || "";
 }
 
+/* ---------------- SAVE PLAYER NOTES ---------------- */
+
 window.saveNotes = async function () {
   const box = el("notesBox");
-  if (!box) return;
-
   const username = el("username")?.value?.trim();
-  if (!username) return;
 
-  const notes = box.value;
+  if (!box || !username) return;
 
   await client.from("user_notes").upsert({
     username,
-    notes
+    notes: box.value
   });
 
   currentNotesUser = username;
 };
 
-/* ---------------- AUTO NOTES SYNC ---------------- */
+/* ---------------- AUTO SYNC ON USERNAME CHANGE ---------------- */
 
 function bindUsernameNotesSync() {
-  const usernameInput = el("username");
-  if (!usernameInput) return;
+  const input = el("username");
+  if (!input) return;
 
-  usernameInput.addEventListener("input", () => {
-    const name = usernameInput.value.trim();
+  input.addEventListener("input", () => {
+    const name = input.value.trim();
+
     if (name) {
       loadNotes(name);
+    } else {
+      const box = el("notesBox");
+      if (box) box.value = "";
     }
   });
 }
 
 /* ---------------- GM NOTES VIEW ---------------- */
-
-window.showNotesList = function () {
-  const list = el("userList");
-  const view = el("dmNotesView");
-
-  if (list) list.style.display = "block";
-  if (view) view.style.display = "none";
-
-  loadUserList();
-};
 
 window.openUserNotes = async function (username) {
   const view = el("dmNotesView");
@@ -296,7 +278,6 @@ window.openUserNotes = async function (username) {
 
   if (!view || !box) return;
 
-  isViewingDMNotes = true;
   currentNotesUser = username;
 
   if (title) title.textContent = `Notes: ${username}`;
@@ -317,6 +298,7 @@ window.openUserNotes = async function (username) {
       username,
       notes: ""
     });
+
     box.value = "";
   } else {
     box.value = data.notes || "";
@@ -325,32 +307,40 @@ window.openUserNotes = async function (username) {
   view.style.display = "block";
 };
 
+/* ---------------- SAVE GM NOTES ---------------- */
+
 window.saveDMNotes = async function () {
   const box = el("dmNotesBox");
   if (!box || !currentNotesUser) return;
 
-  await client.from("user_notes").upsert({
+  const { error } = await client.from("user_notes").upsert({
     username: currentNotesUser,
     notes: box.value
   });
+
+  if (error) console.error(error);
 };
+
+/* ---------------- BACK BUTTON ---------------- */
 
 window.closeNotesView = function () {
   const view = el("dmNotesView");
   if (view) view.style.display = "none";
 
-  isViewingDMNotes = false;
   currentNotesUser = "";
 };
 
-/* ---------------- HOOK INTO EXISTING STARTUP ---------------- */
+/* ---------------- INIT HOOKS ---------------- */
 
 const oldInit = initChat;
 
 initChat = async function () {
   await oldInit();
+
   bindUsernameNotesSync();
 
   const username = el("username")?.value?.trim();
-  if (username) loadNotes(username);
+  if (username) {
+    loadNotes(username);
+  }
 };
