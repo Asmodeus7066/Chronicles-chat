@@ -253,22 +253,34 @@ window.saveNotes = async function () {
 
 /* ---------------- AUTO SYNC ON USERNAME CHANGE ---------------- */
 
-function bindUsernameNotesSync() {
-  const input = el("username");
-  if (!input) return;
+function syncNotesPanel() {
+  const usernameEl = el("username");
+  const panel = el("notesPanel");
 
-  input.addEventListener("input", () => {
-    const name = input.value.trim();
+  if (!panel) return;
 
-    if (name) {
-      loadNotes(name);
-    } else {
-      const box = el("notesBox");
-      if (box) box.value = "";
-    }
-  });
+  const username = usernameEl?.value?.trim();
+
+  // If no username → hide panel + clear notes safely
+  if (!username) {
+    panel.style.display = "none";
+
+    const box = el("notesBox");
+    if (box) box.value = "";
+
+    currentNotesUser = "";
+    return;
+  }
+
+  // Show panel when username exists
+  panel.style.display = "block";
+
+  // Only reload notes if switching user
+  if (currentNotesUser !== username) {
+    currentNotesUser = username;
+    loadNotes(username);
+  }
 }
-
 /* ---------------- GM NOTES VIEW ---------------- */
 
 window.openUserNotes = async function (username) {
