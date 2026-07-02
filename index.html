@@ -1,34 +1,14 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>Chronicle Rebuild</title>
-
     <link rel="stylesheet" href="style.css">
-
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
 
-<!-- PLAYER NOTES PANEL -->
-
-<div id="notesPanel">
-
-    <h3>Character Notes</h3>
-
-    <textarea
-        id="notesBox"
-        placeholder="Write your notes here..."
-    ></textarea>
-
-    <button onclick="saveNotes()">
-        Save Notes
-    </button>
-
-</div>
-
 <!-- CHAT -->
-
 <div id="chat">
 
     <div id="messages"></div>
@@ -36,52 +16,47 @@
     <div id="inputArea">
 
         <input id="username" placeholder="Username">
-
         <input id="avatar" placeholder="Avatar URL">
-
         <input id="messageInput" placeholder="Write...">
 
         <button onclick="sendMessage()">Send</button>
-
         <button onclick="enterGMMode()">GM Login</button>
 
     </div>
 
 </div>
 
-<!-- DM PANEL -->
+<!-- PLAYER NOTES (hidden until username exists via JS) -->
+<div id="notesPanel" style="display:none;">
 
+    <h3>Character Notes</h3>
+
+    <textarea id="notesBox"></textarea>
+
+    <button onclick="saveNotes()">Save Notes</button>
+
+</div>
+
+<!-- DM PANEL -->
 <div id="dmPanel" style="display:none;">
 
     <h3>DM Panel</h3>
 
-    <button onclick="deleteAllMessages()">
-        Delete Messages
-    </button>
-
-    <button onclick="loadUserList()">
-        Load Users
-    </button>
-
-    <button onclick="showNotesList()">
-        View User Notes
-    </button>
+    <button onclick="deleteAllMessages()">Delete Messages</button>
+    <button onclick="loadUserList()">Load Users</button>
+    <button onclick="showNotesList()">View User Notes</button>
 
     <div id="userList"></div>
 
     <div id="dmNotesView" style="display:none;">
 
-        <button onclick="closeNotesView()">
-            ← Back
-        </button>
+        <button onclick="closeNotesView()">← Back</button>
 
         <h3 id="dmNotesTitle"></h3>
 
         <textarea id="dmNotesBox"></textarea>
 
-        <button onclick="saveDMNotes()">
-            Save Notes
-        </button>
+        <button onclick="saveDMNotes()">Save Notes</button>
 
     </div>
 
