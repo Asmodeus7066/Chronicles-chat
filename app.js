@@ -112,7 +112,7 @@ async function initChat() {
   subscribeToMessages();
 }
 
-/* ---------------- DM PANEL ---------------- */
+/* ---------------- GM PANEL ---------------- */
 
 window.enterGMMode = function () {
   const pass = prompt("Enter GM password:");
@@ -136,8 +136,7 @@ window.enterGMMode = function () {
 window.deleteAllMessages = async function () {
   if (!isDM) return;
 
-  const confirmDelete = confirm("Delete ALL messages?");
-  if (!confirmDelete) return;
+  if (!confirm("Delete ALL messages?")) return;
 
   const { error } = await client
     .from("messages")
@@ -150,8 +149,65 @@ window.deleteAllMessages = async function () {
     return;
   }
 
-  const container = el("messages");
-  if (container) container.innerHTML = "";
+  loadMessages();
+
+  const list = el("userList");
+  if (list) list.innerHTML = "";
+};
+
+/* ---------------- LOAD USER LIST ---------------- */
+
+window.loadUserList = async function () {
+  if (!isDM) return;
+
+  const { data, error } = await client
+    .from("messages")
+    .select("username");
+
+  if (error) {
+    console.error(error);
+    alert("Couldn't load users.");
+    return;
+  }
+
+  const usernames = [...new Set((data || []).map(row => row.username))].sort();
+
+  const list = el("userList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  usernames.forEach(username => {
+    const button = document.createElement("button");
+    button.textContent = username;
+
+    button.onclick = () => deleteUser(username);
+
+    list.appendChild(button);
+  });
+};
+
+/* ---------------- DELETE USER ---------------- */
+
+window.deleteUser = async function (username) {
+  if (!isDM) return;
+
+  if (!confirm(`Delete ALL messages from "${username}"?`))
+    return;
+
+  const { error } = await client
+    .from("messages")
+    .delete()
+    .eq("username", username);
+
+  if (error) {
+    console.error(error);
+    alert("Failed to delete user.");
+    return;
+  }
+
+  await loadMessages();
+  await loadUserList();
 };
 
 /* ---------------- STARTUP ---------------- */
